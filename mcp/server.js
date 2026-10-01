@@ -79,18 +79,16 @@ const TOOLS = [
   {
     name: 'prompt',
     description:
-      'Generate a structured Weave SuperPrompt: request contract, 5-pillar operational memory, budgeted reasoning protocol, and the 6-question fidelity gate. Emits clean Markdown text by default, or XML when xml: true.',
+      'Generate a ready-to-paste plain-text task brief for another agent. target picks the style: claude (Claude Code), gemini (Gemini / Antigravity), codex (Codex CLI), or generic. Without task, the Goal and working memory in .weave/state.md are used.',
     inputSchema: {
       type: 'object',
       properties: {
         task: { type: 'string' },
+        target: { type: 'string', enum: ['claude', 'gemini', 'codex', 'generic'] },
         mode: { type: 'string', enum: ['off', 'lite', 'full', 'ultra'] },
         budget: { type: 'integer', minimum: 1, maximum: 50 },
         load_state: { type: 'boolean' },
         memory_name: { type: 'string' },
-        agent: { type: 'string' },
-        raw: { type: 'boolean' },
-        xml: { type: 'boolean' },
         cwd: { type: 'string' },
       },
     },
@@ -191,14 +189,8 @@ function callTool(name, args = {}) {
       if (args.memory_name !== undefined && typeof args.memory_name !== 'string') {
         throw new Error('invalid memory_name: must be a string');
       }
-      if (args.agent !== undefined && typeof args.agent !== 'string') {
-        throw new Error('invalid agent: must be a string');
-      }
-      if (args.raw !== undefined && typeof args.raw !== 'boolean') {
-        throw new Error('invalid raw: must be a boolean');
-      }
-      if (args.xml !== undefined && typeof args.xml !== 'boolean') {
-        throw new Error('invalid xml: must be a boolean');
+      if (args.target !== undefined && typeof args.target !== 'string') {
+        throw new Error('invalid target: must be a string');
       }
       return text(
         prompt.buildSuperPrompt({
@@ -207,9 +199,7 @@ function callTool(name, args = {}) {
           budget: args.budget,
           state: Boolean(args.load_state),
           memory: args.memory_name,
-          agent: args.agent,
-          raw: Boolean(args.raw),
-          xml: Boolean(args.xml),
+          target: args.target,
           cwd,
         })
       );

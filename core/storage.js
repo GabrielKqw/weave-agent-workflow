@@ -74,26 +74,56 @@ function listRuns(cwd) {
     });
 }
 
+function readHrns(filePath) {
+  try {
+    const m = fs.readFileSync(filePath, 'utf8').match(/"hrns"\s*:\s*"(\d+)"/);
+    return m ? BigInt(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 function pruneOldRuns(cwd, { maxCount = DEFAULT_MAX_COUNT, maxAgeMs = DEFAULT_MAX_AGE_MS } = {}) {
   const dir = runsDir(cwd);
   if (!fs.existsSync(dir)) return { removed: 0 };
-  const runs = listRuns(cwd);
   const now = Date.now();
   const toRemove = new Set();
+  const items = [];
 
-  for (const r of runs) {
-    if (now - new Date(r.ts).getTime() > maxAgeMs) toRemove.add(r.id);
+  for (const file of fs.readdirSync(dir)) {
+    const id = path.basename(file, '.json');
+    if (!file.endsWith('.json') || !RUN_ID_RE.test(id)) continue;
+    const filePath = path.join(dir, file);
+    let mtimeMs;
+    try {
+      mtimeMs = fs.statSync(filePath).mtimeMs;
+    } catch {
+      continue;
+    }
+    if (now - mtimeMs > maxAgeMs) toRemove.add(id);
+    else items.push({ id, filePath, mtimeMs, hrns: undefined });
   }
-  const remainingAfterAge = runs.filter((r) => !toRemove.has(r.id));
-  if (remainingAfterAge.length > maxCount) {
-    const excess = remainingAfterAge.length - maxCount;
-    remainingAfterAge.slice(0, excess).forEach((r) => toRemove.add(r.id));
+
+  if (items.length > maxCount) {
+    const hrnsOf = (item) => {
+      if (item.hrns === undefined) item.hrns = readHrns(item.filePath);
+      return item.hrns;
+    };
+    items.sort((a, b) => {
+      if (a.mtimeMs !== b.mtimeMs) return a.mtimeMs - b.mtimeMs;
+      const aHr = hrnsOf(a);
+      const bHr = hrnsOf(b);
+      if (aHr !== null && bHr !== null && aHr !== bHr) return aHr < bHr ? -1 : 1;
+      return a.id.localeCompare(b.id);
+    });
+    for (const item of items.slice(0, items.length - maxCount)) toRemove.add(item.id);
   }
 
   for (const id of toRemove) {
     for (const ext of ['.json', '.raw.txt']) {
-      const p = path.join(dir, `${id}${ext}`);
-      if (fs.existsSync(p)) fs.unlinkSync(p);
+      try {
+        fs.unlinkSync(path.join(dir, `${id}${ext}`));
+      } catch {}
     }
   }
   return { removed: toRemove.size };

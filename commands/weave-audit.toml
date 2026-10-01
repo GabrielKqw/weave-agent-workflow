@@ -1,0 +1,2 @@
+description = "Audit the whole repository for removable code and dependencies"
+prompt = "Audit the whole repository for removable code without editing anything. {{args}} Skip node_modules, .git, and build output, and confirm usage with a search before calling code dead. One line per finding, biggest cut first: <tag> <what to cut>. <replacement>. [path] evidence: <search>. Tags: delete, reuse, stdlib, native, yagni, shrink, shared. Split into Safe now and Needs a decision. End with net: -<N> lines, -<M> deps possible."

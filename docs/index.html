@@ -52,7 +52,7 @@
           Terminal intelligence and context continuity for coding agents.
         </h1>
         <p class="hero-subtitle" data-i18n="hero_subtitle">
-          Weave condenses repetitive CLI output by up to <strong>96.4%</strong>, prevents redundant file reads, and synchronizes working memory across Claude Code, OpenAI Codex, and Antigravity CLI. Pure Node.js standard library with 100% failure integrity.
+          Weave condenses repetitive CLI output by up to <strong>96.4%</strong>, prevents redundant file reads, and synchronizes working memory across Claude Code, OpenAI Codex, Antigravity CLI, and OpenCode. Pure Node.js standard library with 100% failure integrity.
         </p>
 
         <!-- Quick Install Tabs -->
@@ -61,6 +61,7 @@
             <button class="install-tab-btn active" data-install="claude">Claude Code</button>
             <button class="install-tab-btn" data-install="codex">Codex CLI</button>
             <button class="install-tab-btn" data-install="agy">Antigravity CLI</button>
+            <button class="install-tab-btn" data-install="opencode">OpenCode</button>
             <button class="install-tab-btn" data-install="standalone">Standalone CLI</button>
           </div>
           <div class="install-body">
@@ -474,10 +475,10 @@ Approx tokens saved: ~42,350 tokens</code></pre>
               <span class="cmd-badge" data-i18n="badge_prompt">SuperPrompt</span>
             </div>
             <p class="cmd-desc" data-i18n="cmd_prompt_desc">
-              Compiles a structured XML SuperPrompt with request contract, 5-pillar operational memory, bounded reasoning steps, reflection, reward scores, and 6 fidelity questions.
+              Prints a plain-text task brief in the style of Claude, Gemini, or Codex, with request contract, working memory, step budget, and the 6 fidelity questions.
             </p>
             <div class="cmd-syntax-label" data-i18n="cmd_syntax_label">Syntax:</div>
-            <div class="cmd-syntax">weave prompt [--mode=MODE] [--budget=N] [--state] [--memory=NAME] [--agent=NAME] [--raw] [--] [task...]</div>
+            <div class="cmd-syntax">weave prompt [claude|gemini|codex] [-m MODE] [-b N] [-s] [--memory NAME] [--] [task...]</div>
             <div class="cmd-example-block">
               <div class="cmd-example-header">
                 <span data-i18n="cmd_example_label">Real Example:</span>

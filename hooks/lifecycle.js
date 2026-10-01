@@ -21,7 +21,6 @@ function main() {
   const raw = fs.readFileSync(0, 'utf8').replace(/^\uFEFF/, '');
   const input = raw ? JSON.parse(raw) : {};
 
-  // Antigravity (Google / Gemini) PreInvocation support
   if (input.invocationNum !== undefined || (input.conversationId && !input.hook_event_name)) {
     const cwd = (Array.isArray(input.workspacePaths) && input.workspacePaths[0]) || process.cwd();
     const text = mode.instructions(mode.readMode(cwd));

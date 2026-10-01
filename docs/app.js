@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       hero_badge: 'v0.6.1 · Zero-Dependency CLI · Node.js 18+',
       hero_title: 'Terminal intelligence and context continuity for coding agents.',
-      hero_subtitle: 'Weave condenses repetitive CLI output by up to <strong>96.4%</strong>, prevents redundant file reads, and synchronizes working memory across Claude Code, OpenAI Codex, and Antigravity CLI. Pure Node.js standard library with 100% failure integrity.',
+      hero_subtitle: 'Weave condenses repetitive CLI output by up to <strong>96.4%</strong>, prevents redundant file reads, and synchronizes working memory across Claude Code, OpenAI Codex, Antigravity CLI, and OpenCode. Pure Node.js standard library with 100% failure integrity.',
       copy_btn: 'Copy',
       copied_btn: 'Copied!',
 
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cmd_doctor_desc: 'Verifies Node.js runtime (>=18), bash path, plugin manifests integrity, and directory write permissions.',
       cmd_exec_desc: 'Executes any shell command through output reduction filters. Preserves non-zero exit codes, errors, and stack traces 100% verbatim.',
       cmd_memory_desc: 'Saves, restores, lists, and manages named snapshots of `.weave/state.md` under `.weave/memories/` for cross-agent task handoff.',
-      cmd_prompt_desc: 'Compiles a structured XML SuperPrompt with request contract, 5-pillar operational memory, bounded reasoning steps, reflection, reward scores, and 6 fidelity questions.',
+      cmd_prompt_desc: 'Prints a plain-text task brief in the style of Claude, Gemini, or Codex, with request contract, working memory, step budget, and the 6 fidelity questions.',
       cmd_gain_desc: 'Calculates total byte reduction and approximate tokens saved across all wrapped runs in `.weave/runs/`.',
       cmd_recall_desc: 'Prints the full, raw captured output of any past command by its 12-character run ID, with automatic secret scrubbing.',
       cmd_mode_desc: 'Displays or updates the active engineering discipline policy in `.weave/mode`: `off`, `lite`, `full`, or `ultra`.',
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       hero_badge: 'v0.6.1 · CLI Sem Dependências · Node.js 18+',
       hero_title: 'Inteligência de terminal e continuidade de contexto para agentes de código.',
-      hero_subtitle: 'O Weave condensa saídas repetitivas de terminal em até <strong>96,4%</strong>, evita releituras redundantes de arquivos e sincroniza a memória de trabalho entre Claude Code, OpenAI Codex e Antigravity CLI. Node.js nativo com 100% de integridade em falhas.',
+      hero_subtitle: 'O Weave condensa saídas repetitivas de terminal em até <strong>96,4%</strong>, evita releituras redundantes de arquivos e sincroniza a memória de trabalho entre Claude Code, OpenAI Codex, Antigravity CLI e OpenCode. Node.js nativo com 100% de integridade em falhas.',
       copy_btn: 'Copiar',
       copied_btn: 'Copiado!',
 
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cmd_doctor_desc: 'Verifica versão do Node.js (>=18), executável bash, integridade dos manifestos e permissões de escrita.',
       cmd_exec_desc: 'Executa comandos no terminal aplicando filtros conservadores. Preserva saídas com erro, diagnósticos e stack traces 100% na íntegra.',
       cmd_memory_desc: 'Salva, restaura, lista e gerencia snapshots nomeados de `.weave/state.md` em `.weave/memories/` para continuidade entre sessões.',
-      cmd_prompt_desc: 'Compila um SuperPrompt XML estruturado com contrato de requisição, memória operacional de 5 pilares, passos de raciocínio limitados, reflexão, pontuação de recompensa e 6 perguntas de fidelidade.',
+      cmd_prompt_desc: 'Gera um briefing em texto puro no estilo do Claude, Gemini ou Codex, com contrato da tarefa, memória de trabalho, orçamento de passos e as 6 perguntas de fidelidade.',
       cmd_gain_desc: 'Calcula a redução total de bytes e a estimativa de tokens poupados em todas as execuções salvas em `.weave/runs/`.',
       cmd_recall_desc: 'Imprime a saída bruta completa de uma execução anterior pelo seu ID de 12 caracteres, com sanitização de credenciais.',
       cmd_mode_desc: 'Exibe ou atualiza a política ativa de engenharia em `.weave/mode`: `off`, `lite`, `full` ou `ultra`.',
@@ -365,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     claude: 'claude plugin marketplace add GabrielKqw/weave --scope user\nclaude plugin install weave@weave --scope user',
     codex: 'codex plugin marketplace add GabrielKqw/weave\ncodex plugin add weave@weave',
     agy: 'git clone https://github.com/GabrielKqw/weave.git\ncd weave && agy plugin install ./',
+    opencode: '{\n  "$schema": "https://opencode.ai/config.json",\n  "mcp": {\n    "weave": {\n      "type": "local",\n      "command": ["node", "./mcp/server.js"]\n    }\n  }\n}',
     standalone: 'npm install --global weave-agent-workflow\n# Or run directly without installation:\nnpx weave-agent-workflow doctor'
   };
 

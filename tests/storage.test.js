@@ -95,10 +95,35 @@ test('pruneOldRuns removes runs older than maxAgeMs regardless of count', () => 
   const dir = storage.runsDir(cwd);
   const metaPath = path.join(dir, `${id}.json`);
   const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-  meta.ts = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const old = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  meta.ts = old.toISOString();
   fs.writeFileSync(metaPath, JSON.stringify(meta));
+  fs.utimesSync(metaPath, old, old);
 
   storage.pruneOldRuns(cwd, { maxCount: 1000, maxAgeMs: 14 * 24 * 60 * 60 * 1000 });
   assert.equal(storage.loadRun(cwd, id), null);
   fs.rmSync(cwd, { recursive: true, force: true });
 });
+
+test('pruneOldRuns orders records by filesystem metadata without JSON.parse', (t) => {
+  const cwd = tmpCwd();
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  const ids = [];
+  for (let i = 0; i < 4; i++) {
+    ids.push(storage.saveRun(cwd, { command: `cmd${i}`, exitCode: 0 }, null));
+  }
+  let jsonParseCalls = 0;
+  const originalJsonParse = JSON.parse;
+  JSON.parse = function (...args) {
+    jsonParseCalls++;
+    return originalJsonParse.apply(this, args);
+  };
+  try {
+    const res = storage.pruneOldRuns(cwd, { maxCount: 2, maxAgeMs: Number.MAX_SAFE_INTEGER });
+    assert.equal(res.removed, 2);
+    assert.equal(jsonParseCalls, 0, 'pruneOldRuns should not call JSON.parse for records ordered from filesystem metadata');
+  } finally {
+    JSON.parse = originalJsonParse;
+  }
+});
+

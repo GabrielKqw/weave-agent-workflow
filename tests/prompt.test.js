@@ -16,27 +16,30 @@ function tmpCwd() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'weave-prompt-test-'));
 }
 
-function runCli(args, cwd) {
-  return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8' });
+function withTmp(t) {
+  const cwd = tmpCwd();
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  return cwd;
 }
 
-function assertWellFormedXml(xml) {
-  const illegalRe = /[^\t\n\r\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
-  assert.equal(illegalRe.test(xml), false, 'XML contains characters forbidden in XML 1.0');
-
-  const stack = [];
-  const tagRe = /<\/?([a-zA-Z_][\w.-]*)([^>]*?)(\/?)>/g;
-  let m;
-  while ((m = tagRe.exec(xml))) {
-    const [full, name, , selfClose] = m;
-    if (full.startsWith('</')) {
-      const top = stack.pop();
-      assert.equal(top, name, `mismatched closing tag </${name}> in: ${full}`);
-    } else if (!selfClose) {
-      stack.push(name);
-    }
+function cleanEnv() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (/^(CODEX_|ANTIGRAVITY_|OPENCODE_)/.test(key)) delete env[key];
   }
-  assert.equal(stack.length, 0, `unclosed tags remain: ${stack.join(', ')}`);
+  delete env.OPENCODE;
+  delete env.OPENAI_CLI_MODEL;
+  delete env.WEAVE_AGENT;
+  return env;
+}
+
+function runCli(args, cwd, env = cleanEnv()) {
+  return spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', env });
+}
+
+function writeState(cwd, lines) {
+  fs.mkdirSync(path.join(cwd, '.weave'), { recursive: true });
+  fs.writeFileSync(path.join(cwd, '.weave', 'state.md'), lines.join('\n'));
 }
 
 function withServer(fn) {
@@ -81,366 +84,340 @@ function withServer(fn) {
   });
 }
 
-test('escapeXml escapes &, <, >, ", and \'', () => {
-  assert.equal(promptCore.escapeXml(`<a>&"'`), '&lt;a&gt;&amp;&quot;&apos;');
+const SAMPLE_STATE = [
+  '# Weave state',
+  '',
+  '## Goal',
+  'Ship the feature.',
+  '',
+  '## Constraints',
+  'No new dependencies.',
+  '',
+  '## Not requested',
+  'Refactoring unrelated modules.',
+  '',
+  '## Completion criteria',
+  'npm test passes.',
+  '',
+  '## Working memory',
+  '- file: core/orders.js',
+  '  reason: computes order totals.',
+  '  relation: called by the checkout handler.',
+  '',
+  'Confirmed facts:',
+  '- amount must be non-negative',
+];
+
+test('normalizeTarget maps agents and aliases to the three styles plus generic', () => {
+  assert.equal(promptCore.normalizeTarget('claude'), 'claude');
+  assert.equal(promptCore.normalizeTarget('Claude-Code'), 'claude');
+  assert.equal(promptCore.normalizeTarget('gemini'), 'gemini');
+  assert.equal(promptCore.normalizeTarget('antigravity'), 'gemini');
+  assert.equal(promptCore.normalizeTarget('agy'), 'gemini');
+  assert.equal(promptCore.normalizeTarget('codex'), 'codex');
+  assert.equal(promptCore.normalizeTarget('opencode'), 'generic');
+  assert.equal(promptCore.normalizeTarget(undefined), 'generic');
+  assert.equal(promptCore.normalizeTarget(null), 'generic');
+  assert.throws(() => promptCore.normalizeTarget('bogus'), /invalid target: bogus/);
+  assert.equal(promptCore.isTarget('Codex'), true);
+  assert.equal(promptCore.isTarget('fix'), false);
 });
 
-test('escapeXml strips characters forbidden by XML 1.0 (NUL, control chars, unpaired surrogates, non-characters)', () => {
-  const bad = 'clean\u0000text\u0008with\u000Bcontrol\uD800surrogate\uFFFEend';
-  const escaped = promptCore.escapeXml(bad);
-  assert.equal(escaped.includes('\u0000'), false);
-  assert.equal(escaped.includes('\u0008'), false);
-  assert.equal(escaped.includes('\u000B'), false);
-  assert.equal(escaped.includes('\uFFFE'), false);
-  // Unpaired surrogate is normalized to valid replacement character (\uFFFD)
-  assert.match(escaped, /cleantextwithcontrol\uFFFDsurrogateend/);
+test('buildSuperPrompt output is plain text with no XML-like tags', (t) => {
+  const cwd = withTmp(t);
+  for (const target of promptCore.TARGETS) {
+    const text = promptCore.buildSuperPrompt({ task: 'fix the bug', target, mode: 'full', cwd });
+    assert.equal(/<\/?[a-z_]+[^>]*>/i.test(text), false, `${target} output contains tag-like markup`);
+    assert.match(text, /## Task\nfix the bug/);
+    assert.match(text, /## Before you say it is done/);
+    assert.match(text, /## Final report/);
+    assert.match(text, /6\. Is every claim backed by real evidence/);
+  }
 });
 
-test('buildSuperPrompt produces clean Markdown text by default without XML tags', () => {
-  const text = promptCore.buildSuperPrompt({ task: 'fix the bug', mode: 'full', budget: 7, cwd: tmpCwd() });
-  assert.match(text, /# WEAVE SUPERPROMPT/);
-  assert.match(text, /Goal: fix the bug/);
-  assert.match(text, /Reasoning Budget: 7 steps/);
-  assert.match(text, /## Interaction Protocol & Directives/);
-  assert.match(text, /PAUSE and ask the user clarifying questions/);
-  assert.match(text, /## Fidelity Gate/);
-  assert.equal(text.includes('<weave_superprompt'), false);
-  assert.equal(text.includes('<request_contract>'), false);
+test('each target gets its own coherent style', (t) => {
+  const cwd = withTmp(t);
+  const build = (target) => promptCore.buildSuperPrompt({ task: 'fix the bug', target, budget: 7, cwd });
+
+  const claude = build('claude');
+  assert.match(claude, /^# Task brief for Claude Code/);
+  assert.match(claude, /CLAUDE\.md/);
+  assert.match(claude, /about 7 working steps/);
+  assert.match(claude, /todo list/);
+
+  const gemini = build('gemini');
+  assert.match(gemini, /^# Task brief for Gemini/);
+  assert.match(gemini, /GEMINI\.md/);
+  assert.match(gemini, /at most 7 steps/);
+  assert.match(gemini, /## Task\nfix the bug$/);
+
+  const codex = build('codex');
+  assert.match(codex, /^# Task brief for Codex/);
+  assert.match(codex, /AGENTS\.md/);
+  assert.match(codex, /Keep going until the task is fully resolved/);
+  assert.match(codex, /Budget: about 7 steps/);
+
+  const generic = build(undefined);
+  assert.match(generic, /^# Task brief\n/);
+
+  assert.equal(new Set([claude, gemini, codex, generic]).size, 4);
 });
 
-test('buildSuperPrompt with xml: true produces well-formed XML with expected structure', () => {
-  const xml = promptCore.buildSuperPrompt({ task: 'fix the bug', mode: 'full', budget: 7, xml: true, cwd: tmpCwd() });
-  assertWellFormedXml(xml);
-  assert.match(xml, /<weave_superprompt version="1\.0" mode="full" agent="unspecified" budget="7">/);
-  assert.match(xml, /<goal>fix the bug<\/goal>/);
-  assert.match(xml, /<reasoning_engine total_budget="7">/);
-  assert.match(xml, /<fidelity_gate status="pending">/);
-  assert.match(xml, /<question id="6">/);
-  assert.match(xml, /<output_format>/);
-  assert.match(xml, /<interaction_protocol>/);
-  assert.match(xml, /Do NOT reply inside XML tags/);
-  assert.match(xml, /pause and ask the user clarifying questions/);
+test('Gemini puts the task last; the other targets put it first', (t) => {
+  const cwd = withTmp(t);
+  for (const target of ['claude', 'codex', 'generic']) {
+    const text = promptCore.buildSuperPrompt({ task: 'fix the bug', target, cwd });
+    assert.ok(text.indexOf('## Task') < text.indexOf('## Done when'), target);
+  }
+  const gemini = promptCore.buildSuperPrompt({ task: 'fix the bug', target: 'gemini', cwd });
+  assert.ok(gemini.indexOf('## Task') > gemini.indexOf('## Final report'));
 });
 
-test('buildSuperPrompt escapes unsafe characters in XML mode', () => {
-  const xml = promptCore.buildSuperPrompt({ task: `fix <script>&"'`, xml: true, cwd: tmpCwd() });
-  assertWellFormedXml(xml);
-  assert.match(xml, /<goal>fix &lt;script&gt;&amp;&quot;&apos;<\/goal>/);
+test('mode controls the engineering rules section', (t) => {
+  const cwd = withTmp(t);
+  const full = promptCore.buildSuperPrompt({ task: 'x', mode: 'full', cwd });
+  assert.match(full, /## Engineering rules\n- Trace the affected flow/);
+  assert.equal(full.includes('WEAVE MODE ACTIVE'), false);
+
+  const ultra = promptCore.buildSuperPrompt({ task: 'x', mode: 'ultra', cwd });
+  assert.match(ultra, /prefer deletion/);
+
+  const off = promptCore.buildSuperPrompt({ task: 'x', mode: 'off', cwd });
+  assert.equal(off.includes('## Engineering rules'), false);
 });
 
-test('buildSuperPrompt cleans NUL and control characters in XML mode into valid XML', () => {
-  const xml = promptCore.buildSuperPrompt({ task: 'fix\u0000the\u0007bug\uFFFF', xml: true, cwd: tmpCwd() });
-  assertWellFormedXml(xml);
-  assert.match(xml, /<goal>fixthebug<\/goal>/);
+test('buildSuperPrompt strips control characters from the task', (t) => {
+  const cwd = withTmp(t);
+  const text = promptCore.buildSuperPrompt({ task: 'fix\u0000the\u0007 bug', cwd });
+  assert.match(text, /## Task\nfixthe bug/);
 });
 
-test('buildSuperPrompt rejects an out-of-range budget', () => {
-  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', budget: 0, cwd: tmpCwd() }), /invalid budget/);
-  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', budget: 51, cwd: tmpCwd() }), /invalid budget/);
-  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', budget: 3.5, cwd: tmpCwd() }), /invalid budget/);
+test('buildSuperPrompt rejects an out-of-range budget', (t) => {
+  const cwd = withTmp(t);
+  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', budget: 0, cwd }), /invalid budget/);
+  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', budget: 51, cwd }), /invalid budget/);
+  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', budget: 3.5, cwd }), /invalid budget/);
 });
 
-test('buildSuperPrompt rejects an invalid mode', () => {
-  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', mode: 'bogus', cwd: tmpCwd() }), /invalid mode/);
+test('buildSuperPrompt rejects an invalid mode and an invalid target', (t) => {
+  const cwd = withTmp(t);
+  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', mode: 'bogus', cwd }), /invalid mode/);
+  assert.throws(() => promptCore.buildSuperPrompt({ task: 'x', target: 'bogus', cwd }), /invalid target/);
 });
 
-test('parseStateMarkdown extracts goal, constraints, antiScope, criteria, and the memory pillars', () => {
-  const content = [
-    '# Weave state',
-    '',
-    '## Goal',
-    'Ship the feature.',
-    '',
-    '## Constraints',
-    'No new dependencies.',
-    '',
-    '## Not requested',
-    'Refactoring unrelated modules.',
-    '',
-    '## Completion criteria',
-    'npm test passes.',
-    '',
-    '## Working memory',
-    '- the handler traces the request flow into the service layer',
-    '- business rule: amount must be non-negative',
-    '- root cause: defect triggered by a stale cache entry',
-    '- schema contract: the users table key maps to id',
-    '- verification gap: no test covers the timeout path',
-  ].join('\n');
+test('buildSuperPrompt without a task or state goal explains how to fix it', (t) => {
+  const cwd = withTmp(t);
+  assert.throws(() => promptCore.buildSuperPrompt({ cwd }), /missing task: describe it, e\.g\. weave prompt claude/);
+});
 
-  const parsed = promptCore.parseStateMarkdown(content);
+test('parseStateMarkdown extracts the contract and keeps working memory verbatim', () => {
+  const parsed = promptCore.parseStateMarkdown(SAMPLE_STATE.join('\n'));
   assert.equal(parsed.goal, 'Ship the feature.');
   assert.equal(parsed.constraints, 'No new dependencies.');
   assert.equal(parsed.antiScope, 'Refactoring unrelated modules.');
   assert.equal(parsed.criteria, 'npm test passes.');
-  assert.match(parsed.flow, /traces the request flow/);
-  assert.match(parsed.rules, /must be non-negative/);
-  assert.match(parsed.rootCause, /root cause/);
-  assert.match(parsed.schema, /schema contract/);
-  assert.match(parsed.gaps, /verification gap/);
+  assert.match(parsed.memory, /- file: core\/orders\.js\n  reason: computes order totals\./);
+  assert.match(parsed.memory, /Confirmed facts:\n- amount must be non-negative/);
 });
 
-test('parseMemoryMarkdown extracts the five pillars from a saved memory snapshot', () => {
-  const content = [
-    '## Working memory',
-    '- execution flow: entry point calls the handler, which calls the service',
-    '- rule: constraint requires a valid token',
-    '- defect: root cause was an off-by-one error',
-    '- integration contract: the field maps to the schema key',
-    '- test gap: repro steps are untested',
-  ].join('\n');
-
-  const pillars = promptCore.parseMemoryMarkdown(content);
-  assert.equal(Object.keys(pillars).sort().join(','), 'flow,gaps,rootCause,rules,schema');
-  assert.match(pillars.flow, /entry point calls the handler/);
-  assert.match(pillars.rules, /constraint requires/);
-  assert.match(pillars.rootCause, /root cause/);
-  assert.match(pillars.schema, /schema key/);
-  assert.match(pillars.gaps, /untested/);
+test('parseMemoryMarkdown returns the Working memory section, or the whole file without one', () => {
+  assert.equal(promptCore.parseMemoryMarkdown('## Working memory\n- a\n## Plan\n- b').memory, '- a');
+  assert.equal(promptCore.parseMemoryMarkdown('- loose note').memory, '- loose note');
 });
 
-test('buildSuperPrompt with --state ingests .weave/state.md', () => {
-  const cwd = tmpCwd();
-  fs.mkdirSync(path.join(cwd, '.weave'), { recursive: true });
-  fs.writeFileSync(
-    path.join(cwd, '.weave', 'state.md'),
-    ['## Goal', 'Repair the pipeline.', '', '## Working memory', '- root cause: defect in the retry logic'].join('\n')
+test('without a task, .weave/state.md drives the brief automatically', (t) => {
+  const cwd = withTmp(t);
+  writeState(cwd, SAMPLE_STATE);
+  const text = promptCore.buildSuperPrompt({ target: 'claude', cwd });
+  assert.match(text, /## Task\nShip the feature\./);
+  assert.match(text, /## Done when\n- npm test passes\./);
+  assert.match(text, /## Scope\n- Constraint: No new dependencies\.\n- Out of scope: Refactoring unrelated modules\./);
+  assert.match(
+    text,
+    /## What is already known\n- file: core\/orders\.js\n  reason: computes order totals\.\n  relation: called by the checkout handler\.\n\nConfirmed facts:\n- amount must be non-negative/
   );
-
-  const text = promptCore.buildSuperPrompt({ state: true, cwd });
-  assert.match(text, /Goal: Repair the pipeline\./);
-  assert.match(text, /Defect root cause:.*root cause: defect in the retry logic/);
-
-  const xml = promptCore.buildSuperPrompt({ state: true, xml: true, cwd });
-  assertWellFormedXml(xml);
-  assert.match(xml, /<goal>Repair the pipeline\.<\/goal>/);
-  assert.match(xml, /<defect_root_cause>.*root cause: defect in the retry logic.*<\/defect_root_cause>/);
 });
 
-test('buildSuperPrompt with --memory ingests a saved memory snapshot', () => {
-  const cwd = tmpCwd();
-  fs.mkdirSync(path.join(cwd, '.weave'), { recursive: true });
-  fs.writeFileSync(
-    path.join(cwd, '.weave', 'state.md'),
-    ['## Goal', 'placeholder', '', '## Working memory', '- schema contract: the order table key maps to order_id'].join('\n')
-  );
+test('a task alone ignores state unless state is requested', (t) => {
+  const cwd = withTmp(t);
+  writeState(cwd, SAMPLE_STATE);
+  const plain = promptCore.buildSuperPrompt({ task: 'Other task', cwd });
+  assert.equal(plain.includes('core/orders.js'), false);
+  assert.match(plain, /Define a concrete, verifiable check/);
+
+  const merged = promptCore.buildSuperPrompt({ task: 'Other task', state: true, cwd });
+  assert.match(merged, /## Task\nOther task/);
+  assert.equal(merged.includes('Ship the feature.'), false);
+  assert.match(merged, /core\/orders\.js/);
+});
+
+test('a saved memory snapshot feeds the known facts', (t) => {
+  const cwd = withTmp(t);
+  writeState(cwd, ['## Goal', 'placeholder', '', '## Working memory', '- the order table key maps to order_id']);
   memory.saveMemory(cwd, 'checkpoint');
-
   const text = promptCore.buildSuperPrompt({ task: 'continue the migration', memory: 'checkpoint', cwd });
-  assert.match(text, /Goal: continue the migration/);
-  assert.match(text, /Schema contract:.*order table key maps to order_id/);
-
-  const xml = promptCore.buildSuperPrompt({ task: 'continue the migration', memory: 'checkpoint', xml: true, cwd });
-  assertWellFormedXml(xml);
-  assert.match(xml, /<goal>continue the migration<\/goal>/);
-  assert.match(xml, /<schema_contract>.*order table key maps to order_id.*<\/schema_contract>/);
+  assert.match(text, /## Task\ncontinue the migration/);
+  assert.match(text, /## What is already known\n- the order table key maps to order_id/);
 });
 
-test('CLI: weave prompt "task" exits 0 and prints clean Markdown text by default', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', 'my task'], cwd);
-  assert.equal(res.status, 0);
-  assert.match(res.stdout, /# WEAVE SUPERPROMPT/);
-  assert.match(res.stdout, /Goal: my task/);
-  assert.equal(res.stdout.includes('<weave_superprompt'), false);
+test('CLI: weave prompt claude "task" prints the Claude brief', (t) => {
+  const cwd = withTmp(t);
+  const res = runCli(['prompt', 'claude', 'fix', 'the', 'login'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /^# Task brief for Claude Code/);
+  assert.match(res.stdout, /## Task\nfix the login\n/);
 });
 
-test('CLI: weave prompt --xml "task" exits 0 and prints well-formed XML', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--xml', 'my task'], cwd);
-  assert.equal(res.status, 0);
-  assertWellFormedXml(res.stdout);
-  assert.match(res.stdout, /<goal>my task<\/goal>/);
+test('CLI: the target word is only consumed in first position', (t) => {
+  const cwd = withTmp(t);
+  const res = runCli(['prompt', '--for=codex', 'claude', 'is', 'slow'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /^# Task brief for Codex/);
+  assert.match(res.stdout, /## Task\nclaude is slow\n/);
 });
 
-test('CLI: weave prompt --xml --budget=5 --raw collapses structural inter-tag whitespace', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--xml', '--budget=5', '--raw', 'raw task'], cwd);
-  assert.equal(res.status, 0);
-  assert.match(res.stdout, /budget="5"/);
-  // Structural indentation between tags is gone (text content, e.g. <invariants>,
-  // may still legitimately contain its own embedded newlines).
-  assert.equal(/>\n\s+</.test(res.stdout), false);
-  assert.match(res.stdout, /<goal>raw task<\/goal><constraints>/);
-  assertWellFormedXml(res.stdout);
+test('CLI: short and spaced options match their --name=value forms', (t) => {
+  const cwd = withTmp(t);
+  const a = runCli(['prompt', '-f', 'gemini', '-b', '4', '-m', 'lite', 'task'], cwd);
+  const b = runCli(['prompt', '--for=gemini', '--budget=4', '--mode=lite', 'task'], cwd);
+  const c = runCli(['prompt', '--target', 'gemini', '--budget', '4', '--mode', 'lite', 'task'], cwd);
+  assert.equal(a.status, 0, a.stderr);
+  assert.equal(a.stdout, b.stdout);
+  assert.equal(a.stdout, c.stdout);
+  assert.match(a.stdout, /at most 4 steps/);
 });
 
-test('CLI: weave prompt rejects an invalid --mode', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--mode=bogus', 'task'], cwd);
+test('CLI: aliases antigravity and agy select the Gemini style', (t) => {
+  const cwd = withTmp(t);
+  for (const alias of ['antigravity', 'agy']) {
+    const res = runCli(['prompt', alias, 'task'], cwd);
+    assert.equal(res.status, 0, res.stderr);
+    assert.match(res.stdout, /^# Task brief for Gemini/);
+  }
+});
+
+test('CLI: the detected agent picks the default style', (t) => {
+  const cwd = withTmp(t);
+  const codex = runCli(['prompt', 'task'], cwd, { ...cleanEnv(), CODEX_THREAD_ID: 'x' });
+  assert.match(codex.stdout, /^# Task brief for Codex/);
+  const gemini = runCli(['prompt', 'task'], cwd, { ...cleanEnv(), ANTIGRAVITY_AGENT: '1' });
+  assert.match(gemini.stdout, /^# Task brief for Gemini/);
+  const generic = runCli(['prompt', 'task'], cwd);
+  assert.match(generic.stdout, /^# Task brief\n/);
+  const unknown = runCli(['prompt', 'task'], cwd, { ...cleanEnv(), WEAVE_AGENT: 'something-else' });
+  assert.equal(unknown.status, 0, unknown.stderr);
+  assert.match(unknown.stdout, /^# Task brief\n/);
+});
+
+test('CLI: weave prompt with no task uses .weave/state.md', (t) => {
+  const cwd = withTmp(t);
+  writeState(cwd, SAMPLE_STATE);
+  const res = runCli(['prompt', 'codex'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /## Task\nShip the feature\./);
+});
+
+test('CLI: weave prompt with no task and no state exits 2 with a hint', (t) => {
+  const cwd = withTmp(t);
+  const res = runCli(['prompt', 'claude'], cwd);
   assert.equal(res.status, 2);
-  assert.match(res.stderr, /--mode expects/);
+  assert.match(res.stderr, /missing task/);
 });
 
-test('CLI: weave prompt rejects an out-of-range --budget', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--budget=999', 'task'], cwd);
-  assert.equal(res.status, 2);
-  assert.match(res.stderr, /invalid budget/);
+test('CLI: weave prompt rejects bad input with exit 2 and a help hint', (t) => {
+  const cwd = withTmp(t);
+  const cases = [
+    [['prompt', '--mode=bogus', 'task'], /--mode expects/],
+    [['prompt', '--budget=999', 'task'], /invalid budget: 999/],
+    [['prompt', '--budget=0x10', 'task'], /expected a decimal integer/],
+    [['prompt', '-b', 'ten', 'task'], /expected a decimal integer/],
+    [['prompt', '--for=bogus', 'task'], /invalid target: bogus/],
+    [['prompt', '--xml', 'task'], /unrecognized option "--xml"/],
+    [['prompt', 'task', '--budget'], /--budget needs a value/],
+    [['prompt', '--cwd=does-not-exist-dir', 'task'], /invalid --cwd/],
+  ];
+  for (const [args, re] of cases) {
+    const res = runCli(args, cwd);
+    assert.equal(res.status, 2, args.join(' '));
+    assert.match(res.stderr, re);
+    assert.match(res.stderr, /weave prompt --help/);
+  }
 });
 
-test('CLI: weave prompt rejects unrecognized options with exit code 2', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--unknown-option', 'task'], cwd);
-  assert.equal(res.status, 2);
-  assert.match(res.stderr, /unrecognized option/);
+test('CLI: "--" keeps flag-looking words in the task', (t) => {
+  const cwd = withTmp(t);
+  const res = runCli(['prompt', 'claude', '--', '--flag-in-task', 'fix', 'bug'], cwd);
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /## Task\n--flag-in-task fix bug/);
 });
 
-test('CLI: weave prompt rejects non-decimal budget values with exit code 2', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const hexRes = runCli(['prompt', '--budget=0x10', 'task'], cwd);
-  assert.equal(hexRes.status, 2);
-  assert.match(hexRes.stderr, /expected a decimal integer/);
-
-  const strRes = runCli(['prompt', '--budget=ten', 'task'], cwd);
-  assert.equal(strRes.status, 2);
-  assert.match(strRes.stderr, /expected a decimal integer/);
+test('CLI: weave prompt --help and -h print usage with examples and exit 0', (t) => {
+  const cwd = withTmp(t);
+  for (const flag of ['--help', '-h']) {
+    const res = runCli(['prompt', flag], cwd);
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /Usage: weave prompt \[claude\|gemini\|codex\]/);
+    assert.match(res.stdout, /weave prompt claude "fix the login timeout"/);
+  }
 });
 
-test('CLI: weave prompt supports "--" option terminator for literal flags in task', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--state', '--', '--flag-in-task', 'fix bug'], cwd);
-  assert.equal(res.status, 0);
-  assert.match(res.stdout, /Goal: --flag-in-task fix bug/);
-});
-
-test('CLI: weave prompt --help prints usage and exits 0', (t) => {
-  const cwd = tmpCwd();
-  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const res = runCli(['prompt', '--help'], cwd);
-  assert.equal(res.status, 0);
-  assert.match(res.stdout, /Usage: weave prompt/);
-});
-
-test('buildSuperPrompt task overrides state goal but preserves state memory pillars', () => {
-  const cwd = tmpCwd();
-  const weaveDir = path.join(cwd, '.weave');
-  fs.mkdirSync(weaveDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(weaveDir, 'state.md'),
-    ['## Goal', 'Original state goal', '## Working memory', '- rule: order total must be positive'].join('\n')
-  );
-
-  const text = promptCore.buildSuperPrompt({ task: 'Overridden task goal', state: true, cwd });
-  assert.match(text, /Goal: Overridden task goal/);
-  assert.match(text, /Business rules:.*order total must be positive/);
-
-  const xml = promptCore.buildSuperPrompt({ task: 'Overridden task goal', state: true, xml: true, cwd });
-  assertWellFormedXml(xml);
-  assert.match(xml, /<goal>Overridden task goal<\/goal>/);
-  assert.match(xml, /<business_rules>.*order total must be positive.*<\/business_rules>/);
-});
-
-test('mcp server: tools/list exposes prompt', async () => {
+test('mcp server: tools/list exposes prompt with a target enum and no xml flag', async () => {
   await withServer(async ({ send, nextResponse }) => {
     send({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} });
     const res = await nextResponse();
-    const names = res.result.tools.map((t) => t.name);
-    assert.ok(names.includes('prompt'));
+    const tool = res.result.tools.find((t) => t.name === 'prompt');
+    assert.ok(tool);
+    assert.deepEqual(tool.inputSchema.properties.target.enum, promptCore.TARGETS);
+    assert.equal(tool.inputSchema.properties.xml, undefined);
+    assert.equal(tool.inputSchema.properties.raw, undefined);
   });
 });
 
-test('mcp server: tools/call prompt executes cleanly and returns clean Markdown text', async () => {
+test('mcp server: tools/call prompt returns the brief for the requested target', async () => {
   await withServer(async ({ send, nextResponse }) => {
     send({
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/call',
-      params: { name: 'prompt', arguments: { task: 'mcp task', budget: 3 } },
+      params: { name: 'prompt', arguments: { task: 'mcp task', budget: 3, target: 'gemini' } },
     });
     const res = await nextResponse();
     assert.ok(res.result, `expected a result, got error: ${JSON.stringify(res.error)}`);
     const text = res.result.content[0].text;
-    assert.match(text, /# WEAVE SUPERPROMPT/);
-    assert.match(text, /Goal: mcp task/);
-    assert.match(text, /Reasoning Budget: 3 steps/);
-    assert.equal(text.includes('<weave_superprompt'), false);
+    assert.match(text, /^# Task brief for Gemini/);
+    assert.match(text, /at most 3 steps/);
+    assert.match(text, /## Task\nmcp task$/);
   });
 });
 
-test('mcp server: tools/call prompt with xml: true returns well-formed XML', async () => {
+test('mcp server: tools/call prompt rejects invalid arguments with JSON-RPC errors', async () => {
+  const cases = [
+    [{ task: 'x', budget: 999 }, /invalid budget/],
+    [{ load_state: 'false' }, /invalid load_state: must be a boolean/],
+    [{ task: 12345 }, /invalid task: must be a string/],
+    [{ task: 'x', target: 7 }, /invalid target: must be a string/],
+    [{ task: 'x', target: 'bogus' }, /invalid target: bogus/],
+    [null, /invalid tool arguments/],
+  ];
   await withServer(async ({ send, nextResponse }) => {
-    send({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'tools/call',
-      params: { name: 'prompt', arguments: { task: 'mcp task', budget: 3, xml: true } },
-    });
-    const res = await nextResponse();
-    assert.ok(res.result, `expected a result, got error: ${JSON.stringify(res.error)}`);
-    const xml = res.result.content[0].text;
-    assertWellFormedXml(xml);
-    assert.match(xml, /<goal>mcp task<\/goal>/);
-    assert.match(xml, /total_budget="3"/);
+    let id = 10;
+    for (const [args, re] of cases) {
+      send({ jsonrpc: '2.0', id: id++, method: 'tools/call', params: { name: 'prompt', arguments: args } });
+      const res = await nextResponse();
+      assert.ok(res.error, JSON.stringify(args));
+      assert.match(res.error.message, re);
+    }
   });
 });
 
-test('mcp server: tools/call prompt with an invalid budget returns a JSON-RPC error', async () => {
-  await withServer(async ({ send, nextResponse }) => {
-    send({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'tools/call',
-      params: { name: 'prompt', arguments: { task: 'x', budget: 999 } },
-    });
-    const res = await nextResponse();
-    assert.ok(res.error);
-    assert.match(res.error.message, /invalid budget/);
-  });
-});
-
-test('mcp server: tools/call prompt rejects invalid types for arguments (string load_state, non-string task)', async () => {
-  await withServer(async ({ send, nextResponse }) => {
-    // string load_state ("false")
-    send({
-      jsonrpc: '2.0',
-      id: 4,
-      method: 'tools/call',
-      params: { name: 'prompt', arguments: { load_state: 'false' } },
-    });
-    const res1 = await nextResponse();
-    assert.ok(res1.error);
-    assert.match(res1.error.message, /invalid load_state: must be a boolean/);
-
-    // non-string task
-    send({
-      jsonrpc: '2.0',
-      id: 5,
-      method: 'tools/call',
-      params: { name: 'prompt', arguments: { task: 12345 } },
-    });
-    const res2 = await nextResponse();
-    assert.ok(res2.error);
-    assert.match(res2.error.message, /invalid task: must be a string/);
-
-    // non-boolean raw
-    send({
-      jsonrpc: '2.0',
-      id: 6,
-      method: 'tools/call',
-      params: { name: 'prompt', arguments: { raw: 'true' } },
-    });
-    const res3 = await nextResponse();
-    assert.ok(res3.error);
-    assert.match(res3.error.message, /invalid raw: must be a boolean/);
-
-    // explicit arguments: null
-    send({
-      jsonrpc: '2.0',
-      id: 7,
-      method: 'tools/call',
-      params: { name: 'prompt', arguments: null },
-    });
-    const res4 = await nextResponse();
-    assert.ok(res4.error);
-    assert.match(res4.error.message, /invalid tool arguments/);
-  });
+test('briefs carry the automatic plan so the receiving agent thinks before coding', (t) => {
+  const cwd = withTmp(t);
+  for (const target of promptCore.TARGETS) {
+    const text = promptCore.buildSuperPrompt({ task: 'fix the bug', target, mode: 'full', cwd });
+    assert.match(text, /## Plan before you code\n1\. Understand: /);
+    assert.match(text, /stop and re-plan instead of patching around it/);
+    assert.ok(text.indexOf('## Plan before you code') < text.indexOf('## Engineering rules'), target);
+  }
+  const off = promptCore.buildSuperPrompt({ task: 'x', mode: 'off', cwd });
+  assert.equal(off.includes('## Plan before you code'), false);
 });

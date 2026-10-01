@@ -198,10 +198,15 @@ function hasCodexEnv() {
   return Object.keys(process.env).some((key) => key.startsWith('CODEX_'));
 }
 
+function hasOpencodeEnv() {
+  if (process.env.OPENCODE || process.env.OPENCODE_SESSION_ID) return true;
+  return Object.keys(process.env).some((key) => key.startsWith('OPENCODE_'));
+}
+
 function detectAgent(argv = []) {
   for (const arg of argv) {
     if (arg.startsWith('--agent=')) return arg.slice(8).toLowerCase();
-    if (arg === 'antigravity' || arg === 'codex' || arg === 'claude') return arg;
+    if (arg === 'antigravity' || arg === 'codex' || arg === 'claude' || arg === 'opencode') return arg;
   }
   if (
     process.env.ANTIGRAVITY_AGENT ||
@@ -212,6 +217,7 @@ function detectAgent(argv = []) {
     return 'antigravity';
   }
   if (hasCodexEnv()) return 'codex';
+  if (hasOpencodeEnv()) return 'opencode';
   if (process.env.WEAVE_AGENT) return process.env.WEAVE_AGENT.toLowerCase();
   return null;
 }
@@ -272,6 +278,7 @@ function cmdDoctor(argv = []) {
   checkJson('.claude-plugin/marketplace.json', path.join(PLUGIN_ROOT, '.claude-plugin', 'marketplace.json'), results);
   checkJson('.codex-plugin/plugin.json', path.join(PLUGIN_ROOT, '.codex-plugin', 'plugin.json'), results);
   checkJson('.agents/plugins/marketplace.json', path.join(PLUGIN_ROOT, '.agents', 'plugins', 'marketplace.json'), results);
+  checkJson('opencode.json', path.join(PLUGIN_ROOT, 'opencode.json'), results);
 
   const geminiPath = path.join(PLUGIN_ROOT, 'GEMINI.md');
   const geminiOk = fs.existsSync(geminiPath);
@@ -279,6 +286,14 @@ function cmdDoctor(argv = []) {
     ok: geminiOk,
     label: 'GEMINI.md present (Antigravity)',
     detail: geminiOk ? geminiPath : `missing: ${geminiPath} - run node scripts/generate-agent-rules.js`,
+  });
+
+  const opencodePluginPath = path.join(PLUGIN_ROOT, 'plugins', 'opencode.js');
+  const opencodePluginOk = fs.existsSync(opencodePluginPath);
+  results.push({
+    ok: opencodePluginOk,
+    label: 'plugins/opencode.js present',
+    detail: opencodePluginOk ? opencodePluginPath : `missing: ${opencodePluginPath} - reinstall or reclone the Weave plugin`,
   });
 
   const hooksJson = checkJson('hooks/hooks.json', path.join(PLUGIN_ROOT, 'hooks', 'hooks.json'), results);
@@ -413,14 +428,59 @@ function cmdMemory(argv) {
   }
 }
 
-function cmdPrompt(argv) {
-  const options = { state: false, raw: false };
+const PROMPT_USAGE = [
+  'Usage: weave prompt [claude|gemini|codex] [options] [--] [task...]',
+  '',
+  'Prints a ready-to-paste task brief tailored to the target agent.',
+  'With no task, the Goal and working memory in .weave/state.md are used.',
+  '',
+  'Options:',
+  '  -f, --for <agent>     claude, gemini, codex, or generic (default: detected agent)',
+  '  -m, --mode <mode>     off, lite, full, or ultra (default: .weave/mode)',
+  '  -b, --budget <n>      working steps, 1-50 (default: 10)',
+  '  -s, --state           include .weave/state.md even when a task is given',
+  '      --memory <name>   include a saved memory from .weave/memories/',
+  '      --cwd <dir>       project directory (default: current directory)',
+  '  -h, --help            show this help',
+  '',
+  'Examples:',
+  '  weave prompt claude "fix the login timeout"',
+  '  weave prompt codex                    (uses .weave/state.md)',
+  '  weave prompt --for=gemini -b 5 "add pagination to /users"',
+  '',
+].join('\n');
+
+const PROMPT_VALUE_FLAGS = {
+  '-f': 'target',
+  '--for': 'target',
+  '--target': 'target',
+  '--agent': 'target',
+  '-m': 'mode',
+  '--mode': 'mode',
+  '-b': 'budget',
+  '--budget': 'budget',
+  '--memory': 'memory',
+  '--cwd': 'cwd',
+};
+
+function promptUsageError(message) {
+  process.stderr.write(`weave prompt: ${message}\nRun "weave prompt --help" for usage.\n`);
+  process.exitCode = 2;
+}
+
+function parsePromptArgs(argv) {
+  const options = { state: false };
   const taskParts = [];
   let optionsDone = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (optionsDone) {
+    const positional = optionsDone || !arg.startsWith('-') || arg === '-';
+    if (positional && !optionsDone && taskParts.length === 0 && options.target === undefined && prompt.isTarget(arg)) {
+      options.target = arg;
+      continue;
+    }
+    if (positional) {
       taskParts.push(arg);
       continue;
     }
@@ -428,70 +488,77 @@ function cmdPrompt(argv) {
       optionsDone = true;
       continue;
     }
-    if (arg === '--help' || arg === '-h') {
-      process.stdout.write('Usage: weave prompt [--mode=off|lite|full|ultra] [--budget=N] [--state] [--memory=NAME] [--agent=NAME] [--xml] [--raw] [--cwd=DIR] [--] [task...]\n');
-      process.exitCode = 0;
-      return;
-    }
-    if (arg === '--state') {
+    if (arg === '--help' || arg === '-h') return { help: true };
+    if (arg === '--state' || arg === '-s') {
       options.state = true;
-    } else if (arg === '--raw') {
-      options.raw = true;
-    } else if (arg === '--xml') {
-      options.xml = true;
-    } else if (arg.startsWith('--mode=')) {
-      options.mode = arg.slice(7);
-    } else if (arg.startsWith('--budget=')) {
-      const rawBudget = arg.slice(9);
-      if (!/^\d+$/.test(rawBudget)) {
-        process.stderr.write(`weave prompt: invalid budget "${rawBudget}" (expected a decimal integer between 1 and 50)\n`);
-        process.exitCode = 2;
-        return;
-      }
-      options.budget = parseInt(rawBudget, 10);
-    } else if (arg.startsWith('--memory=')) {
-      options.memory = arg.slice(9);
-    } else if (arg.startsWith('--agent=')) {
-      options.agent = arg.slice(8);
-    } else if (arg.startsWith('--cwd=')) {
-      options.cwd = arg.slice(6);
-    } else if (arg.startsWith('-')) {
-      process.stderr.write(`weave prompt: unrecognized option "${arg}"\n`);
-      process.exitCode = 2;
-      return;
-    } else {
-      taskParts.push(arg);
+      continue;
     }
+    const eq = arg.indexOf('=');
+    const flag = eq === -1 ? arg : arg.slice(0, eq);
+    const key = PROMPT_VALUE_FLAGS[flag];
+    if (!key) return { error: `unrecognized option "${arg}"` };
+    let value;
+    if (eq !== -1) {
+      value = arg.slice(eq + 1);
+    } else {
+      if (i + 1 >= argv.length) return { error: `${flag} needs a value` };
+      value = argv[++i];
+    }
+    options[key] = value;
   }
 
-  if (options.mode !== undefined && !modes.MODES.has(options.mode)) {
-    process.stderr.write('weave prompt: --mode expects off, lite, full, or ultra\n');
-    process.exitCode = 2;
+  options.task = taskParts.join(' ');
+  return { options };
+}
+
+function cmdPrompt(argv) {
+  const parsed = parsePromptArgs(argv);
+  if (parsed.help) {
+    process.stdout.write(PROMPT_USAGE);
+    process.exitCode = 0;
     return;
   }
-  if (options.budget !== undefined && (options.budget < 1 || options.budget > 50)) {
-    process.stderr.write(`weave prompt: invalid budget: ${options.budget} (expected an integer between 1 and 50)\n`);
-    process.exitCode = 2;
-    return;
+  if (parsed.error) return promptUsageError(parsed.error);
+  const options = parsed.options;
+
+  if (options.mode !== undefined && !modes.MODES.has(options.mode)) {
+    return promptUsageError('--mode expects off, lite, full, or ultra');
+  }
+  if (options.budget !== undefined) {
+    if (!/^\d+$/.test(options.budget)) {
+      return promptUsageError(`invalid budget "${options.budget}" (expected a decimal integer between 1 and ${prompt.MAX_BUDGET})`);
+    }
+    options.budget = parseInt(options.budget, 10);
+    if (options.budget < 1 || options.budget > prompt.MAX_BUDGET) {
+      return promptUsageError(`invalid budget: ${options.budget} (expected an integer between 1 and ${prompt.MAX_BUDGET})`);
+    }
+  }
+  if (options.target !== undefined) {
+    try {
+      options.target = prompt.normalizeTarget(options.target);
+    } catch (e) {
+      return promptUsageError(e.message);
+    }
+  } else {
+    try {
+      options.target = prompt.normalizeTarget(detectAgent([]));
+    } catch {
+      options.target = 'generic';
+    }
   }
   if (options.cwd !== undefined) {
     try {
       if (!fs.statSync(options.cwd).isDirectory()) throw new Error('not a directory');
     } catch (e) {
-      process.stderr.write(`weave prompt: invalid --cwd "${options.cwd}": ${e.message}\n`);
-      process.exitCode = 2;
-      return;
+      return promptUsageError(`invalid --cwd "${options.cwd}": ${e.message}`);
     }
   }
-
-  options.task = taskParts.join(' ');
-  options.agent = options.agent || detectAgent(argv);
 
   try {
     process.stdout.write(prompt.buildSuperPrompt(options) + '\n');
   } catch (e) {
     process.stderr.write(`weave prompt: ${e.message}\n`);
-    process.exitCode = 1;
+    process.exitCode = e.message.startsWith('missing task') ? 2 : 1;
   }
 }
 
@@ -517,11 +584,11 @@ function main() {
     case 'help':
     case '--help':
     case '-h':
-      process.stdout.write('Usage: weave <doctor|mode [off|lite|full|ultra]|gain|discover|recall <id>|memory <save|load|list|show|delete>|prompt [options] [task]|exec -- <command>>\n');
+      process.stdout.write('Usage: weave <doctor|mode [off|lite|full|ultra]|gain|discover|recall <id>|memory <save|load|list|show|delete>|prompt [claude|gemini|codex] [task]|exec -- <command>>\n');
       process.exitCode = 0;
       return;
     default:
-      process.stdout.write('Usage: weave <doctor|mode [off|lite|full|ultra]|gain|discover|recall <id>|memory <save|load|list|show|delete>|prompt [options] [task]|exec -- <command>>\n');
+      process.stdout.write('Usage: weave <doctor|mode [off|lite|full|ultra]|gain|discover|recall <id>|memory <save|load|list|show|delete>|prompt [claude|gemini|codex] [task]|exec -- <command>>\n');
       process.exitCode = cmd ? 2 : 0;
   }
 }

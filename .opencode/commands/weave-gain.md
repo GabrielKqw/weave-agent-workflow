@@ -1,0 +1,4 @@
+---
+description: "Show measured output and token savings for this project"
+---
+Run weave gain from the project root (or the Weave MCP gain tool) and show only the numbers it printed as a small ASCII scoreboard: received bytes, presented bytes, percent saved, and approximate tokens. $ARGUMENTS If there is no history, say No recorded runs yet. Never estimate missing numbers.

@@ -1,0 +1,2 @@
+description = "Generate a plain-text task brief for Claude, Gemini, or Codex (weave prompt)"
+prompt = "Generate a Weave task brief with the arguments: {{args}}. Call the Weave MCP `prompt` tool when it is available (the first argument may be the target: claude, gemini, or codex; the rest is the task), otherwise run `weave prompt {{args}}`. With no task, the brief is built from .weave/state.md. Show the brief exactly as returned, as plain text, without XML and without rewriting its sections."

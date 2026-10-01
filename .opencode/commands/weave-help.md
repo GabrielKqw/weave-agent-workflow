@@ -1,0 +1,4 @@
+---
+description: "Show the Weave reference card: levels, skills, commands"
+---
+Show the Weave reference card without changing anything. $ARGUMENTS Levels: off, lite, full (default), ultra via /weave <level>, saved in .weave/mode. Skills: weave, weave-plan, weave-review, weave-audit, weave-debt, weave-gain, weave-prompt, weave-help. CLI: weave doctor, mode, prompt [claude|gemini|codex] "task", gain, discover, recall <id>, memory save|load|list|show|delete, exec -- <command>. Failed commands, file reads, and JSON output are always shown in full.

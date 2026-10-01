@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- SuperPrompt now prints a plain-text task brief instead of XML, with a dedicated style per target: `claude` (Claude Code), `gemini` (Gemini / Antigravity, aliases `antigravity` and `agy`), `codex`, and `generic`. Working memory is passed through verbatim instead of being split by keyword.
+- `weave prompt` is easier to use: the first word can be the target (`weave prompt claude "task"`), short options `-f`, `-m`, `-b`, `-s`, space-separated values, `.weave/state.md` is used automatically when no task is given, and errors point to `weave prompt --help`. The `--xml`, `--raw`, and `--agent=` label options were removed; `--agent` now selects the target.
+- MCP `prompt` tool takes `target` instead of `agent`, `xml`, and `raw`.
+- Added the `weave-prompt` command for Gemini/Antigravity (`commands/weave-prompt.toml`).
+- OpenCode: `opencode.json` uses the valid `mcp.weave` shape, the plugin injects the mode policy through `experimental.chat.system.transform`, and resolves the project from `directory`.
+- Run-history pruning orders by file modification time and no longer reads every run file on each command.
+- Main `weave` skill rewritten lean (about 170 lines, was 439): one flow (understand, contract, plan, build the minimum, verify, fidelity check), a reuse ladder, a lite/full/ultra table with examples, a short output pattern, and an explicit "When NOT to simplify".
+- New `weave-plan` skill: traces the flow, writes the contract and a step plan to `.weave/state.md`, edits no source files.
+- `weave-review`, `weave-audit`, `weave-debt`, `weave-gain`, and `weave-help` now define tags, output format, examples, scoring, and boundaries. Review adds `reuse`, `shared`, and `scope` tags; debt also reads open items from `.weave/state.md`.
+- Planning is automatic: the policy injected at session start, into subagents, into the OpenCode system prompt, and into AGENTS.md/GEMINI.md now tells the agent to understand, write the contract, climb the reuse ladder, plan multi-file work, re-plan instead of hacking around a problem, and verify, on every coding request without calling `/weave-plan`. SuperPrompt briefs carry the same "Plan before you code" section. `core/mode.js` exposes `planSteps(mode)` and `rules(mode)` as the single source.
+- Every skill now has a Gemini/Antigravity command (`commands/*.toml`) and an OpenCode command (`.opencode/commands/*.md`).
+
 ## 0.6.3
 
 - Fixed terminal-output interception for Antigravity CLI and Gemini models on Windows: added native PowerShell runner (`core/exec.js`), safe Base64 command wrapper (`--b64`), and Antigravity `run_command` hook support in `hooks/pretooluse.js`.

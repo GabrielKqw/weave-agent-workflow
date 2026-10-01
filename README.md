@@ -4,7 +4,7 @@
 
 Minimal engineering policy, terminal intelligence, context continuity, and verification in one dependency-free plugin.
 
-**Claude Code · Codex CLI · Antigravity CLI**
+**Claude Code · Codex CLI · Antigravity CLI · OpenCode**
 
 [Documentation & Demo](https://gabrielkqw.github.io/weave) | [Why Weave?](#why-weave) | [See it in action](#see-weave-in-action) | [Architecture](#architecture) | [Benchmarks](#benchmarks) | [Installation](#installation)
 
@@ -21,9 +21,17 @@ Minimal engineering policy, terminal intelligence, context continuity, and verif
 
 **[Ler em Português](README.pt-BR.md)**
 
+### ⚡ Stop Claude Code, Codex & Antigravity from burning your context window
+
+Every time your AI coding agent runs a terminal command, verbose logs flood its context window. Within 5–10 steps, the agent slows down, loses focus, forgets earlier instructions, and hits context limits:
+
+| ❌ Raw Shell (Without Weave) | ✅ With Weave (Intelligent Compression) |
+| :--- | :--- |
+| **`git status`** → `84 lines` of unchanged files<br>**`npm test`** → `340 lines` of passing test dots<br>**`npm run build`** → `120 lines` progress bars<br><br>💥 **~15,000 to 50,000 wasted context tokens per run**<br>⚠️ Agent loses previous code context and hallucinates<br>💸 Multiplies API token costs unnecessarily | **`git status`** → `4 lines` (condensed summary + SHA recall)<br>**`npm test`** → `2 lines` (pass summary; failures kept 100%)<br>**`npm run build`** → `1 line` (clean outcome confirmation)<br><br>⚡ **Cuts terminal token usage by up to 96.4%**<br>🎯 Keeps agent context clean, sharp, and focused<br>🔒 Zero loss: full raw output recoverable via `weave recall` |
+
 ## Why Weave?
 
-Long agent sessions rot the same way every time: terminal output balloons, the same file gets re-read, an unrequested abstraction creeps in, and "done" gets claimed without proof. Weave is the layer that stops that pattern — one dependency-free plugin that cuts eligible successful output by up to 96.4% (see [Benchmarks](#benchmarks)), keeps a compact `.weave/state.md` handoff between Claude Code and Codex CLI, and enforces reuse-first, evidence-before-claims engineering discipline.
+Long agent sessions rot the same way every time: terminal output balloons, the same file gets re-read, an unrequested abstraction creeps in, and "done" gets claimed without proof. Weave is the layer that stops that pattern — one dependency-free plugin that cuts eligible successful output by up to 96.4% (see [Benchmarks](#benchmarks)), keeps a compact `.weave/state.md` handoff between Claude Code, Codex CLI, and Antigravity CLI, and enforces reuse-first, evidence-before-claims engineering discipline.
 
 ```mermaid
 flowchart TB
@@ -77,7 +85,7 @@ flowchart TD
 | Recovery | Stores redacted complete captures under `.weave/runs/` |
 | Context continuity | Guides agents to maintain a compact request contract and working memory in `.weave/state.md` |
 | Context snapshots | `weave memory` saves, loads, lists, and inspects named memory snapshots under `.weave/memories/` |
-| SuperPrompt engine | `weave prompt` compiles XML meta-prompts with request contracts, 5-pillar operational memory, step budgeting, reflection, reward scoring, and fidelity checks |
+| SuperPrompt engine | `weave prompt claude\|gemini\|codex "task"` prints a plain-text task brief in each agent's own style, with request contract, working memory, step budget, and fidelity checks |
 | Redundant read prevention | `hooks/preread.js` tracks file reads and searches in `.weave/ledger.json`, warning on unchanged re-reads |
 | Secret redaction | Automatically scrubs API tokens, private keys, database URLs, and Bearer headers from stored captures |
 | Focused operations | Provides review, repository audit, debt, gain, help, and SuperPrompt skills |
@@ -205,7 +213,8 @@ Run `node cli/weave.js gain` inside a project to measure its retained Weave hist
 | --- | --- |
 | Claude Code | Shared skills, lifecycle events, and automatic shell interception |
 | Codex CLI | Shared skills and lifecycle policy (mode injection) via the plugin manifest. Automatic shell interception is not currently supported in Codex CLI |
-| Antigravity CLI (`agy`) | Shared skills and policy via `AGENTS.md`/`GEMINI.md`. Automatic shell interception is not currently supported in Antigravity CLI |
+| Antigravity CLI (`agy`) | Shared skills, rule policy (`GEMINI.md`), and PreToolUse tool interception for `run_command` with PowerShell & Bash support |
+| OpenCode | Native `opencode.json` config, MCP server, lifecycle hooks (`plugins/opencode.js`), slash commands (`.opencode/commands/`), and `AGENTS.md` |
 | Other agents | The CLI can be called directly; automatic host integration is not claimed |
 
 Unsupported hook events fail open, so the original tool call proceeds unchanged.
@@ -299,6 +308,31 @@ agy plugin install ./
 ```
 
 Alternatively, place or link the checkout into `~/.gemini/config/plugins/weave` or `.agents/plugins/weave`. Antigravity CLI loads Weave's skills and project rules (`GEMINI.md`/`AGENTS.md`) automatically.
+
+### OpenCode
+
+Weave integrates natively with [OpenCode](https://opencode.ai) via `opencode.json`, custom slash commands, lifecycle plugin hooks, and `AGENTS.md`.
+
+Add Weave to your project's `opencode.json` (or `.opencode/opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "weave": {
+      "type": "local",
+      "command": ["node", "./mcp/server.js"]
+    }
+  }
+}
+```
+
+What OpenCode gets automatically:
+- **Terminal Optimization**: `plugins/opencode.js` intercepts shell execution tools (`bash`, `sh`, `powershell`) to compress verbose successful output by up to 96.4% while preserving all errors and exit codes.
+- **Session Policy**: Automatically injects active Weave mode instructions (`full`, `lite`, `ultra`) into the system prompt.
+- **Slash Commands**: Adds `/weave`, `/weave-gain`, `/weave-review`, `/weave-prompt`, `/weave-audit`, and `/weave-debt` from `.opencode/commands/`.
+- **Project Guidance**: OpenCode natively follows repository rules in `AGENTS.md`.
+- **Built-in MCP Server**: Exposes memory snapshots, SuperPrompt meta-prompting, and token gain metrics.
 
 ### Local development
 
@@ -446,7 +480,8 @@ Whether to commit `.weave/state.md` is a per-project choice: commit it when the 
 | Skill | Purpose |
 | --- | --- |
 | `weave` | Main workflow, validation, context, and handoff |
-| `weave-prompt` | Generates self-contained XML SuperPrompts with request contracts, 5-pillar memory, and budgeted reasoning |
+| `weave-plan` | Plans before coding: contract and step plan saved to `.weave/state.md`, no edits |
+| `weave-prompt` | Generates plain-text task briefs for Claude, Gemini, or Codex from the task or `.weave/state.md` |
 | `weave-review` | Reviews the current diff for removable complexity |
 | `weave-audit` | Audits the repository for confirmed simplifications |
 | `weave-debt` | Collects explicit `weave:` debt markers |

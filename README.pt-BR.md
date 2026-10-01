@@ -4,7 +4,7 @@
 
 Política mínima de engenharia, inteligência de terminal, continuidade de contexto e verificação em um único plugin sem dependências.
 
-**Claude Code · Codex CLI · Antigravity CLI**
+**Claude Code · Codex CLI · Antigravity CLI · OpenCode**
 
 [Documentação e Demo](https://gabrielkqw.github.io/weave) | [Por que o Weave?](#por-que-o-weave) | [Veja em ação](#veja-o-weave-em-ação) | [Arquitetura](#arquitetura) | [Benchmarks](#benchmarks) | [Instalação](#instalação)
 
@@ -21,9 +21,17 @@ Política mínima de engenharia, inteligência de terminal, continuidade de cont
 
 **[Read this in English](README.md)**
 
+### ⚡ Pare de deixar o Claude Code, Codex e Antigravity esgotarem sua janela de contexto
+
+Toda vez que seu agente de IA roda um comando de terminal, logs extensos inundam a janela de contexto. Em 5 a 10 passos, o agente fica lento, perde o foco, esquece instruções anteriores e atinge o limite de tokens:
+
+| ❌ Terminal Puro (Sem Weave) | ✅ Com Weave (Compressão Inteligente) |
+| :--- | :--- |
+| **`git status`** → `84 linhas` de arquivos não modificados<br>**`npm test`** → `340 linhas` de pontinhos de testes passando<br>**`npm run build`** → `120 linhas` de barras de progresso<br><br>💥 **~15.000 a 50.000 tokens de contexto desperdiçados por rodada**<br>⚠️ Agente perde o contexto anterior e começa a alucinar<br>💸 Multiplica a conta de tokens da API desnecessariamente | **`git status`** → `4 linhas` (resumo condensado + hash de recall)<br>**`npm test`** → `2 linhas` (resumo de aprovação; erros mantidos 100%)<br>**`npm run build`** → `1 linha` (confirmação limpa de sucesso)<br><br>⚡ **Reduz o consumo de tokens de terminal em até 96,4%**<br>🎯 Mantém o contexto do agente limpo, afiado e focado<br>🔒 Zero perda: saída bruta completa recuperável via `weave recall` |
+
 ## Por que o Weave?
 
-Sessões longas de agentes apodrecem sempre do mesmo jeito: a saída de terminal incha, o mesmo arquivo é relido, uma abstração não pedida se infiltra, e "pronto" é declarado sem prova. O Weave é a camada que interrompe esse padrão — um único plugin sem dependências que corta a saída bem-sucedida elegível em até 96,4% (veja [Benchmarks](#benchmarks)), mantém um handoff compacto em `.weave/state.md` entre Claude Code e Codex CLI, e aplica uma disciplina de engenharia baseada em reaproveitamento primeiro e evidência antes de afirmações.
+Sessões longas de agentes apodrecem sempre do mesmo jeito: a saída de terminal incha, o mesmo arquivo é relido, uma abstração não pedida se infiltra, e "pronto" é declarado sem prova. O Weave é a camada que interrompe esse padrão — um único plugin sem dependências que corta a saída bem-sucedida elegível em até 96,4% (veja [Benchmarks](#benchmarks)), mantém um handoff compacto em `.weave/state.md` entre Claude Code, Codex CLI e Antigravity CLI, e aplica uma disciplina de engenharia baseada em reaproveitamento primeiro e evidência antes de afirmações.
 
 ```mermaid
 flowchart TB
@@ -77,7 +85,7 @@ flowchart TD
 | Recuperação | Guarda capturas completas redigidas em `.weave/runs/` |
 | Continuidade de contexto | Orienta agentes a manter um contrato de pedido e memória de trabalho compactos em `.weave/state.md` |
 | Snapshots de contexto | `weave memory` salva, restaura, lista e inspeciona snapshots de memória nomeados em `.weave/memories/` |
-| Meta-prompting SuperPrompt | `weave prompt` compila contratos XML estruturados com orçamento de passos finito, reflexão, pontuação de recompensa e checagem de fidelidade de 6 perguntas |
+| Meta-prompting SuperPrompt | `weave prompt claude\|gemini\|codex "tarefa"` gera um briefing em texto puro no estilo de cada agente, com contrato da tarefa, memória de trabalho, orçamento de passos e checagem de fidelidade |
 | Prevenção de leitura redundante | `hooks/preread.js` monitora leituras e buscas em `.weave/ledger.json`, alertando sobre releituras sem alterações |
 | Redação de segredos | Remove automaticamente tokens de API, chaves privadas, URLs de banco e cabeçalhos Bearer dos logs gravados |
 | Operações focadas | Fornece skills de review, auditoria de repositório, débito, ganho, ajuda e SuperPrompt |
@@ -205,7 +213,8 @@ Rode `node cli/weave.js gain` dentro de um projeto para medir seu histórico ret
 | --- | --- |
 | Claude Code | Skills compartilhadas, eventos de lifecycle e interceptação automática de shell |
 | Codex CLI | Skills compartilhadas e política de lifecycle (injeção de modo) via o manifesto do plugin. Interceptação automática de shell não é suportada atualmente no Codex CLI |
-| Antigravity CLI (`agy`) | Skills compartilhadas e política via `AGENTS.md`/`GEMINI.md`. Interceptação automática de shell não é suportada atualmente no Antigravity CLI |
+| Antigravity CLI (`agy`) | Skills compartilhadas, política de regras (`GEMINI.md`) e interceptação de ferramentas PreToolUse para `run_command` com suporte a PowerShell e Bash |
+| OpenCode | Configuração nativa `opencode.json`, servidor MCP, hooks de ciclo de vida (`plugins/opencode.js`), comandos slash (`.opencode/commands/`) e `AGENTS.md` |
 | Outros agentes | O CLI pode ser chamado diretamente; integração automática com o host não é reivindicada |
 
 Eventos de hook não suportados falham de forma aberta, então a chamada de ferramenta original prossegue sem alterações.
@@ -299,6 +308,31 @@ agy plugin install ./
 ```
 
 Alternativamente, copie ou vincule o repositório em `~/.gemini/config/plugins/weave` ou `.agents/plugins/weave`. O Antigravity CLI carrega as skills e as regras do projeto (`GEMINI.md`/`AGENTS.md`) automaticamente.
+
+### OpenCode
+
+O Weave se integra nativamente com o [OpenCode](https://opencode.ai) através do `opencode.json`, comandos slash customizados, hooks de ciclo de vida e `AGENTS.md`.
+
+Adicione o Weave ao arquivo `opencode.json` (ou `.opencode/opencode.json`) do seu projeto:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "weave": {
+      "type": "local",
+      "command": ["node", "./mcp/server.js"]
+    }
+  }
+}
+```
+
+O que o OpenCode recebe automaticamente:
+- **Otimização de Terminal**: `plugins/opencode.js` intercepta ferramentas de execução (`bash`, `sh`, `powershell`) para condensar saídas prolixas em até 96,4%, mantendo 100% dos erros e códigos de saída.
+- **Política de Sessão**: Injeta automaticamente as instruções do modo ativo (`full`, `lite`, `ultra`) no prompt de sistema.
+- **Comandos Slash**: Adiciona `/weave`, `/weave-gain`, `/weave-review`, `/weave-prompt`, `/weave-audit` e `/weave-debt` a partir de `.opencode/commands/`.
+- **Diretrizes do Projeto**: O OpenCode segue nativamente o arquivo de regras `AGENTS.md` do repositório.
+- **Servidor MCP Embutido**: Expõe snapshots de memória, meta-prompting SuperPrompt e métricas de economia de tokens.
 
 ### Desenvolvimento local
 
@@ -446,7 +480,8 @@ Versionar `.weave/state.md` é uma escolha por projeto: versione quando o time c
 | Skill | Propósito |
 | --- | --- |
 | `weave` | Workflow principal, validação, contexto e handoff |
-| `weave-prompt` | Gera SuperPrompts XML autocontidos com contrato de requisição, memória de 5 pilares e raciocínio orçado |
+| `weave-plan` | Planeja antes de codar: contrato e plano de passos salvos em `.weave/state.md`, sem editar |
+| `weave-prompt` | Gera briefings em texto puro para Claude, Gemini ou Codex a partir da tarefa ou do `.weave/state.md` |
 | `weave-review` | Revisa o diff atual em busca de complexidade removível |
 | `weave-audit` | Audita o repositório em busca de simplificações confirmadas |
 | `weave-debt` | Coleta marcadores explícitos de débito `weave:` |

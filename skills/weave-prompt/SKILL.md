@@ -1,88 +1,68 @@
 ---
 name: weave-prompt
-description: Generate structured Weave SuperPrompts using request contracts, 5-pillar operational memory, step budgeting, reflection, reward scoring (0.0-1.0), backtracking, and the 6-question fidelity gate. Emits clean Markdown text by default, or XML with --xml. Use when generating a portable task contract to hand off across agents, delegate to external LLMs/sessions, or when explicitly asked for a SuperPrompt.
+description: Generate a ready-to-paste plain-text task brief (SuperPrompt) tailored to Claude Code, Gemini/Antigravity, or Codex, built from the task and Weave's request contract, working memory, step budget, and fidelity check. Use when handing a task to another agent or session, queuing work for later, or when the user asks for a SuperPrompt or task brief.
 ---
 
 # Weave SuperPrompt
 
-A SuperPrompt compiles a task into a single self-contained, highly structured
-prompt an agent can execute directly: what is being asked, what is already known
-about the codebase, how to spend a bounded reasoning budget, and how to
-prove the work is actually done. It emits clean, readable Markdown text by
-default, or XML when `--xml` is specified. It is inspired by NeoVertex1/SuperPrompt's
-meta-prompting discipline, specialized for Weave's own request contract, working
-memory, and fidelity check (see the `weave` skill, sections 1, 3, and 6).
+A SuperPrompt is a self-contained task brief another agent can execute
+directly. It is plain Markdown text, never XML, and its wording follows the
+target agent's own conventions.
 
-Generate one with:
+## Generate one
 
 ```
-node "<plugin-root>/cli/weave.js" prompt [options] [task...]
+weave prompt [claude|gemini|codex] [options] [task...]
 ```
 
-Flags:
+If `weave` is not on the PATH, run `node "<plugin-root>/cli/weave.js" prompt ...`.
+Over MCP, call the `prompt` tool with `task`, `target`, `mode`, `budget`,
+`load_state`, `memory_name`, and `cwd`.
 
-- `--mode=<off|lite|full|ultra>` — which Weave policy governs the task
-  (defaults to the project's persisted `.weave/mode`).
-- `--budget=<n>` — total reasoning-step budget, an integer from 1 to 50
-  (default 10).
-- `--state` — ingest `.weave/state.md` (Goal, Constraints, Not requested,
-  Completion criteria, and Working memory) into the prompt.
-- `--memory=<name>` — ingest a saved snapshot from
-  `.weave/memories/<name>.md` (see the `weave` skill's memory tooling).
-- `--agent=<name>` — label the executing agent in the output.
-- `--xml` — emit machine-parseable XML instead of the default clean Markdown text.
-- `--cwd=<dir>` — resolve `.weave/` relative to a directory other than the
-  current one.
-- `--raw` — compact output whitespace for piping into another tool.
+Examples:
 
-The same operation is available over MCP as the `prompt` tool
-(`task`, `mode`, `budget`, `load_state`, `memory_name`, `agent`, `xml`, `raw`, `cwd`).
+```
+weave prompt claude "fix the login timeout"
+weave prompt codex
+weave prompt gemini -b 5 "add pagination to /users"
+```
 
-## The SuperPrompt sections
+- The first word picks the target when it is `claude`, `gemini` (aliases
+  `antigravity`, `agy`), `codex`, or `generic`. Without it, the agent running
+  the command is detected; unknown agents get the `generic` style. You can
+  also use `-f`/`--for <agent>`.
+- With no task, the Goal, Constraints, Not requested, Completion criteria, and
+  Working memory from `.weave/state.md` are used. Add `-s`/`--state` to include
+  that context alongside an explicit task.
+- `-m`/`--mode <off|lite|full|ultra>` sets the engineering rules (default:
+  `.weave/mode`). `-b`/`--budget <1-50>` sets the step budget (default 10).
+  `--memory <name>` adds a saved snapshot from `.weave/memories/`.
+- Use `--` before a task that starts with `-`.
 
-1. **`<interaction_protocol>`** — `<directives>`, `<response_style>`, and
-   `<user_clarification>`. Directs the executing agent to communicate with
-   the developer in clear, logical, human-readable Markdown prose (never
-   inside raw XML tags), and explicitly commands the agent to pause and ask
-   clarifying questions whenever requirements, constraints, or designs are
-   ambiguous, contradictory, or in doubt.
-2. **`<request_contract>`** — `<goal>`, `<constraints>`, `<invariants>`
-   (the active mode's Weave policy text), `<anti_scope>`, and
-   `<completion_criteria>`. This is the same contract the `weave` skill's
-   section 1 asks you to write before touching a file — the SuperPrompt
-   just serializes it.
-3. **`<operational_memory>`** — the five Operational Memory Pillars from
-   the `weave` skill's section 3, populated from `.weave/state.md`'s
-   Working memory (with `--state`) or a saved snapshot (with `--memory`):
-   `<execution_flow>`, `<business_rules>`, `<defect_root_cause>`,
-   `<schema_contract>`, `<verification_gaps>`. Freeform notes are matched
-   to a pillar by keyword — review the result and correct anything
-   misclassified before relying on it.
-4. **`<reasoning_engine total_budget="N">`** — the step protocol. Each
-   `<step>` an agent produces while executing the SuperPrompt should carry
-   `<budget remaining="N" total="N"/>`, `<action>`, `<hypothesis>`,
-   `<evidence>`, `<reflection>`, and `<reward score="0.0-1.0"/>`. A low
-   reward or evidence that contradicts the hypothesis calls for a
-   `<backtrack>` — undo the step and revise the plan — instead of pushing
-   forward on a wrong path. The budget is a hard ceiling: stop and report
-   the remaining gap honestly rather than exceeding it or fabricating
-   completion.
-5. **`<fidelity_gate status="pending">`** — the same six questions as the
-   `weave` skill's section 6, each as a numbered `<question>`. Answer them
-   against the request contract before declaring the task done, and flip
-   `status` only once every answer holds.
-6. **`<output_format>`** — what the finished work must produce:
-   `<presentation>` (clear Markdown, no raw XML), `<clarification_gate>`
-   (proactive user questions on ambiguity), `<diff>`,
-   `<verification_command>`, `<evidence>`, and `<state_update>` (the
-   `.weave/state.md` sections to write back, when that file exists for
-   the task).
+## What each target gets
 
-## When to use this vs. the `weave` skill directly
+Every brief has the same sections: Task, Done when, Scope, What is already
+known, Engineering rules, How to work, Before you say it is done (the six
+fidelity questions from the `weave` skill), and Final report.
 
-For a task you're executing yourself in the current session, follow the
-`weave` skill's steps directly — there's no need to round-trip through
-XML you're about to read straight back. Reach for `weave-prompt` when you
-need a portable, self-contained artifact: handing a task to a different
-agent or session, queuing work for later, or when the user explicitly
-asks for a SuperPrompt.
+- **claude**: points to `CLAUDE.md`, asks to read files before proposing
+  changes, ask before editing when a requirement is ambiguous, and keep a todo
+  list.
+- **gemini**: points to `GEMINI.md`, asks for confirmed facts only, short tool
+  output, one direct question when unclear, and places the task at the end,
+  after the context.
+- **codex**: points to `AGENTS.md`, asks to keep going until the task is
+  resolved, search with `rg`, keep diffs minimal, run tests, and give a brief
+  final answer.
+
+## How to present it
+
+Show the brief exactly as generated, as plain text. Do not wrap it in XML or
+rewrite its sections. If the working memory in `.weave/state.md` is thin,
+improve the state file first, then regenerate.
+
+## When to use this vs. the `weave` skill
+
+For a task you are executing yourself in this session, follow the `weave`
+skill directly. Use `weave-prompt` when the work goes to another agent or
+session, or when the user explicitly asks for a SuperPrompt.

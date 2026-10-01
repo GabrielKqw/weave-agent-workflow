@@ -40,11 +40,14 @@ test('package and plugin versions agree', () => {
   assert.equal(pkg.scripts.test, 'node --test');
 });
 
-test('package.json files field ships .agents, GEMINI.md, and AGENTS.md', () => {
+test('package.json files field ships .agents, GEMINI.md, AGENTS.md, opencode.json, plugins, and .opencode', () => {
   const pkg = readJson('package.json');
   assert.ok(pkg.files.includes('.agents'));
   assert.ok(pkg.files.includes('GEMINI.md'));
   assert.ok(pkg.files.includes('AGENTS.md'));
+  assert.ok(pkg.files.includes('opencode.json'));
+  assert.ok(pkg.files.includes('plugins'));
+  assert.ok(pkg.files.includes('.opencode'));
 });
 
 test('weave --help and weave -h print usage and exit 0', () => {
@@ -84,7 +87,7 @@ test('hooks/hooks.json declares a PreToolUse Bash matcher pointing at the real h
 });
 
 test('every bundled skill has matching frontmatter', () => {
-  const names = ['weave', 'weave-review', 'weave-audit', 'weave-debt', 'weave-gain', 'weave-help', 'weave-prompt'];
+  const names = ['weave', 'weave-plan', 'weave-review', 'weave-audit', 'weave-debt', 'weave-gain', 'weave-help', 'weave-prompt'];
   for (const name of names) {
     const file = path.join(ROOT, 'skills', name, 'SKILL.md');
     const text = fs.readFileSync(file, 'utf8');
@@ -110,9 +113,10 @@ test('weave doctor --agent=antigravity reports bash as warn/optional instead of 
 function cleanAgentEnv() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
-    if (key.startsWith('CODEX_') || key.startsWith('ANTIGRAVITY_')) delete env[key];
+    if (key.startsWith('CODEX_') || key.startsWith('ANTIGRAVITY_') || key.startsWith('OPENCODE_')) delete env[key];
   }
   delete env.OPENAI_CLI_MODEL;
+  delete env.OPENCODE;
   delete env.WEAVE_AGENT;
   return env;
 }
@@ -154,4 +158,82 @@ test('weave doctor detects antigravity via ANTIGRAVITY_CONVERSATION_ID', () => {
   assert.doesNotMatch(result.stdout, /detected agent - codex/);
 });
 
+test('weave doctor detects opencode via OPENCODE', () => {
+  const result = runDoctor({ OPENCODE: '1' });
+  assert.match(result.stdout, /detected agent - opencode/);
+});
 
+test('weave doctor detects opencode via OPENCODE_SESSION_ID', () => {
+  const result = runDoctor({ OPENCODE_SESSION_ID: 'opencode-sess-456' });
+  assert.match(result.stdout, /detected agent - opencode/);
+});
+
+
+
+test('Gemini/Antigravity command files declare a description and a prompt', () => {
+  const dir = path.join(ROOT, 'commands');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.toml'));
+  assert.ok(files.includes('weave.toml'));
+  assert.ok(files.includes('weave-prompt.toml'));
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(dir, file), 'utf8');
+    assert.match(content, /^description = ".+"$/m, file);
+    assert.match(content, /^prompt = ".+\{\{args\}\}.*"$/m, file);
+  }
+});
+
+function skillNames() {
+  return fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => fs.existsSync(path.join(ROOT, 'skills', name, 'SKILL.md')));
+}
+
+test('every skill is callable from Gemini/Antigravity and OpenCode', () => {
+  for (const name of skillNames()) {
+    assert.ok(fs.existsSync(path.join(ROOT, 'commands', `${name}.toml`)), `commands/${name}.toml`);
+    assert.ok(fs.existsSync(path.join(ROOT, '.opencode', 'commands', `${name}.md`)), `.opencode/commands/${name}.md`);
+  }
+});
+
+test('OpenCode command frontmatter is valid YAML for a one-line description', () => {
+  const dir = path.join(ROOT, '.opencode', 'commands');
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.md'))) {
+    const line = fs.readFileSync(path.join(dir, file), 'utf8').split(/\r?\n/)[1];
+    const value = line.replace(/^description:\s*/, '');
+    assert.ok(line.startsWith('description:'), file);
+    if (value.startsWith('"')) assert.equal(typeof JSON.parse(value), 'string', file);
+    else assert.doesNotMatch(value, /: |#/, `${file} needs quoting`);
+  }
+});
+
+test('weave-help lists every bundled skill', () => {
+  const help = fs.readFileSync(path.join(ROOT, 'skills', 'weave-help', 'SKILL.md'), 'utf8');
+  for (const name of skillNames()) {
+    assert.ok(help.includes(`**${name}**`), name);
+  }
+});
+
+test('main weave skill stays lean and keeps the core workflow', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'skills', 'weave', 'SKILL.md'), 'utf8');
+  assert.ok(text.split('\n').length <= 200, 'skills/weave/SKILL.md should stay under 200 lines');
+  for (const heading of ['## The flow', '## The ladder', '## Fidelity check', '## Levels', '## When NOT to simplify', '## Shared state']) {
+    assert.ok(text.includes(heading), heading);
+  }
+  for (const level of ['lite', 'full', 'ultra']) {
+    assert.ok(text.includes(`| **${level}** |`), level);
+  }
+});
+
+test('the SuperPrompt and the weave skill ask the same fidelity questions', () => {
+  const { FIDELITY_QUESTIONS } = require('../core/prompt');
+  const text = fs.readFileSync(path.join(ROOT, 'skills', 'weave', 'SKILL.md'), 'utf8').replace(/\s+/g, ' ');
+  assert.equal(FIDELITY_QUESTIONS.length, 6);
+  FIDELITY_QUESTIONS.forEach((question, i) => {
+    assert.ok(text.includes(`${i + 1}. ${question}`), question);
+  });
+});
+
+test('weave-plan is read-only and saves to the shared state', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'skills', 'weave-plan', 'SKILL.md'), 'utf8');
+  assert.match(text, /Do not\s+edit source files/);
+  assert.match(text, /\.weave\/state\.md/);
+  assert.match(text, /Approve to build, or adjust\./);
+});

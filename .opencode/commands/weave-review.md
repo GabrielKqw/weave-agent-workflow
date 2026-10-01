@@ -1,0 +1,4 @@
+---
+description: "Review the current diff for what to cut, reuse, or revert"
+---
+Review only the current diff and its direct callers for avoidable complexity and scope drift; do not edit files. $ARGUMENTS One line per finding: <file>:L<line>: <tag> <what>. <replacement>. Tags: delete, reuse (name the existing helper), stdlib, native, yagni, shrink, shared (fix belongs in a shared function), scope (change not required by the request contract). Rank by impact and end with net: -<N> lines possible. If nothing to cut: Lean already. Ship.
