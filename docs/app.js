@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nav_releases: 'Releases',
       github_btn: 'Star on GitHub',
 
-      hero_badge: 'v0.6.1 · Zero-Dependency CLI · Node.js 18+',
+      hero_badge: 'v0.7.0 · Zero-Dependency CLI · Node.js 18+',
       hero_title: 'Terminal intelligence and context continuity for coding agents.',
       hero_subtitle: 'Weave condenses repetitive CLI output by up to <strong>96.4%</strong>, prevents redundant file reads, and synchronizes working memory across Claude Code, OpenAI Codex, Antigravity CLI, and OpenCode. Pure Node.js standard library with 100% failure integrity.',
       copy_btn: 'Copy',
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nav_releases: 'Versões',
       github_btn: 'Ver no GitHub',
 
-      hero_badge: 'v0.6.1 · CLI Sem Dependências · Node.js 18+',
+      hero_badge: 'v0.7.0 · CLI Sem Dependências · Node.js 18+',
       hero_title: 'Inteligência de terminal e continuidade de contexto para agentes de código.',
       hero_subtitle: 'O Weave condensa saídas repetitivas de terminal em até <strong>96,4%</strong>, evita releituras redundantes de arquivos e sincroniza a memória de trabalho entre Claude Code, OpenAI Codex, Antigravity CLI e OpenCode. Node.js nativo com 100% de integridade em falhas.',
       copy_btn: 'Copiar',

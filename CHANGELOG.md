@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
 - SuperPrompt now prints a plain-text task brief instead of XML, with a dedicated style per target: `claude` (Claude Code), `gemini` (Gemini / Antigravity, aliases `antigravity` and `agy`), `codex`, and `generic`. Working memory is passed through verbatim instead of being split by keyword.
 - `weave prompt` is easier to use: the first word can be the target (`weave prompt claude "task"`), short options `-f`, `-m`, `-b`, `-s`, space-separated values, `.weave/state.md` is used automatically when no task is given, and errors point to `weave prompt --help`. The `--xml`, `--raw`, and `--agent=` label options were removed; `--agent` now selects the target.
