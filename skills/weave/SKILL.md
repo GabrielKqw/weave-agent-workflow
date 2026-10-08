@@ -38,18 +38,20 @@ UNDERSTAND -> CONTRACT -> PLAN -> BUILD THE MINIMUM -> VERIFY -> FIDELITY CHECK
    flow end to end. If `.weave/state.md` exists, read it first and continue
    from it instead of starting over.
 2. **Contract.** Before any edit, state in a few lines:
-   - Goal: what must be observably true when done.
+   - Goal: what the user can do or observe when done.
    - Scope: constraints, and what is explicitly not requested.
-   - Done when: the concrete check (test, command, repro) that proves it.
+   - Done when: observable acceptance criteria plus the concrete check (test, command, repro) that proves each one.
    - Blocking questions: only ones whose answer changes the result. Anything
      else gets a stated assumption.
 3. **Plan.** Classify the task.
    - Simple (one concern, small surface): context -> change -> verify. No
      state file, no ceremony.
    - Complex (several modules, public interface, shared state, unclear
-     approach): write the ordered steps (file, change, check) before the
-     first edit, and keep them in `.weave/state.md` when the work may be
-     handed off. Update the plan in place when evidence changes it. Use
+     approach): write ordered steps (file, change, check), dependencies,
+     and real risks before the first edit. For a new project, identify the
+     smallest usable milestone and how the user will try it. Keep the plan
+     in `.weave/state.md` when work may be handed off; update it when evidence
+     changes it. Use
      `/weave-plan` only when the user wants to approve the plan before any
      code is written.
 4. **Build the minimum.** Climb the ladder below.

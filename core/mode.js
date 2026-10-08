@@ -40,9 +40,9 @@ const PLAN_STEPS = {
   ],
   full: [
     'Understand: read the request and the code it touches; trace the real flow from its entry point before deciding anything.',
-    'Contract: state the goal and the check that proves it is done. Ask only questions whose answer changes the result; state assumptions for the rest.',
+    'Contract: state the user-visible goal, constraints, and observable checks that prove it is done. Ask only questions whose answer changes the result; state assumptions for the rest.',
     'Ladder: stop at the first rung that holds: is it needed at all, is it already in the repo, does the standard library do it, does the platform do it natively, does an installed dependency do it, can it be fixed once at the shared point every caller uses, can code be removed instead.',
-    'Plan: for work spanning several files, a public interface, or shared state, write the ordered steps (file, change, check) before the first edit. For a single-concern change, the contract is the plan.',
+    'Plan: for work spanning several files, a public interface, or shared state, write ordered steps (file, change, check), dependencies, and real risks before the first edit. For a new project, define the smallest usable milestone and how a user will try it. For a single-concern change, the contract is the plan.',
     'Build only what the plan says. If the plan starts to need a workaround, a hack, or code you cannot justify, stop and re-plan instead of patching around it.',
     'Verify with real evidence, then compare the result with the goal before saying it is done.',
   ],

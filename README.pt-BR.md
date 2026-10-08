@@ -12,7 +12,7 @@ Política mínima de engenharia, inteligência de terminal, continuidade de cont
 [![npm version](https://img.shields.io/npm/v/weave-agent-workflow.svg)](https://www.npmjs.com/package/weave-agent-workflow)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/runtime_dependencies-0-111111)
-![Version](https://img.shields.io/badge/version-0.7.0-2563eb)
+![Version](https://img.shields.io/badge/version-0.7.1-2563eb)
 
 
 </div>
@@ -85,7 +85,7 @@ flowchart TD
 | Recuperação | Guarda capturas completas redigidas em `.weave/runs/` |
 | Continuidade de contexto | Orienta agentes a manter um contrato de pedido e memória de trabalho compactos em `.weave/state.md` |
 | Snapshots de contexto | `weave memory` salva, restaura, lista e inspeciona snapshots de memória nomeados em `.weave/memories/` |
-| Meta-prompting SuperPrompt | `weave prompt claude\|gemini\|codex "tarefa"` gera um briefing em texto puro no estilo de cada agente, com contrato da tarefa, memória de trabalho, orçamento de passos e checagem de fidelidade |
+| Meta-prompting SuperPrompt | `weave prompt claude\|gemini\|codex "tarefa"` gera um rascunho em texto puro com contrato, plano salvo, dúvidas pendentes, memória de trabalho e regras do agente; a skill `weave-prompt` acrescenta contexto verificado do projeto |
 | Prevenção de leitura redundante | `hooks/preread.js` monitora leituras e buscas em `.weave/ledger.json`, alertando sobre releituras sem alterações |
 | Redação de segredos | Remove automaticamente tokens de API, chaves privadas, URLs de banco e cabeçalhos Bearer dos logs gravados |
 | Operações focadas | Fornece skills de review, auditoria de repositório, débito, ganho, ajuda e SuperPrompt |

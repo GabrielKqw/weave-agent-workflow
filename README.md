@@ -12,7 +12,7 @@ Minimal engineering policy, terminal intelligence, context continuity, and verif
 [![npm version](https://img.shields.io/npm/v/weave-agent-workflow.svg)](https://www.npmjs.com/package/weave-agent-workflow)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/runtime_dependencies-0-111111)
-![Version](https://img.shields.io/badge/version-0.7.0-2563eb)
+![Version](https://img.shields.io/badge/version-0.7.1-2563eb)
 
 
 </div>
@@ -85,7 +85,7 @@ flowchart TD
 | Recovery | Stores redacted complete captures under `.weave/runs/` |
 | Context continuity | Guides agents to maintain a compact request contract and working memory in `.weave/state.md` |
 | Context snapshots | `weave memory` saves, loads, lists, and inspects named memory snapshots under `.weave/memories/` |
-| SuperPrompt engine | `weave prompt claude\|gemini\|codex "task"` prints a plain-text task brief in each agent's own style, with request contract, working memory, step budget, and fidelity checks |
+| SuperPrompt engine | `weave prompt claude\|gemini\|codex "task"` prints a plain-text scaffold with the request contract, saved plan, open questions, working memory, and agent-specific rules; the `weave-prompt` skill enriches it with verified project context |
 | Redundant read prevention | `hooks/preread.js` tracks file reads and searches in `.weave/ledger.json`, warning on unchanged re-reads |
 | Secret redaction | Automatically scrubs API tokens, private keys, database URLs, and Bearer headers from stored captures |
 | Focused operations | Provides review, repository audit, debt, gain, help, and SuperPrompt skills |

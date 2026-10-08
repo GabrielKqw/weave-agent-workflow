@@ -99,6 +99,13 @@ const SAMPLE_STATE = [
   '## Completion criteria',
   'npm test passes.',
   '',
+  '## Blocking questions',
+  '- Which payment provider should be used?',
+  '',
+  '## Plan',
+  '1. core/orders.js - validate totals - verify: order tests',
+  '2. tests/orders.test.js - cover rejection - verify: node --test',
+  '',
   '## Working memory',
   '- file: core/orders.js',
   '  reason: computes order totals.',
@@ -216,6 +223,8 @@ test('parseStateMarkdown extracts the contract and keeps working memory verbatim
   assert.equal(parsed.constraints, 'No new dependencies.');
   assert.equal(parsed.antiScope, 'Refactoring unrelated modules.');
   assert.equal(parsed.criteria, 'npm test passes.');
+  assert.equal(parsed.questions, '- Which payment provider should be used?');
+  assert.match(parsed.plan, /1\. core\/orders\.js - validate totals/);
   assert.match(parsed.memory, /- file: core\/orders\.js\n  reason: computes order totals\./);
   assert.match(parsed.memory, /Confirmed facts:\n- amount must be non-negative/);
 });
@@ -232,6 +241,8 @@ test('without a task, .weave/state.md drives the brief automatically', (t) => {
   assert.match(text, /## Task\nShip the feature\./);
   assert.match(text, /## Done when\n- npm test passes\./);
   assert.match(text, /## Scope\n- Constraint: No new dependencies\.\n- Out of scope: Refactoring unrelated modules\./);
+  assert.match(text, /## Open decisions\n- Which payment provider should be used\?/);
+  assert.match(text, /## Existing plan\nCheck this plan against the current request and repository before executing it\.\n1\. core\/orders\.js/);
   assert.match(
     text,
     /## What is already known\n- file: core\/orders\.js\n  reason: computes order totals\.\n  relation: called by the checkout handler\.\n\nConfirmed facts:\n- amount must be non-negative/
@@ -243,12 +254,14 @@ test('a task alone ignores state unless state is requested', (t) => {
   writeState(cwd, SAMPLE_STATE);
   const plain = promptCore.buildSuperPrompt({ task: 'Other task', cwd });
   assert.equal(plain.includes('core/orders.js'), false);
-  assert.match(plain, /Define a concrete, verifiable check/);
+  assert.match(plain, /Derive observable acceptance criteria/);
+  assert.equal(plain.includes('Which payment provider'), false);
 
   const merged = promptCore.buildSuperPrompt({ task: 'Other task', state: true, cwd });
   assert.match(merged, /## Task\nOther task/);
   assert.equal(merged.includes('Ship the feature.'), false);
   assert.match(merged, /core\/orders\.js/);
+  assert.match(merged, /## Existing plan/);
 });
 
 test('a saved memory snapshot feeds the known facts', (t) => {

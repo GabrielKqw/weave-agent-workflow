@@ -31,9 +31,9 @@ weave prompt gemini -b 5 "add pagination to /users"
   `antigravity`, `agy`), `codex`, or `generic`. Without it, the agent running
   the command is detected; unknown agents get the `generic` style. You can
   also use `-f`/`--for <agent>`.
-- With no task, the Goal, Constraints, Not requested, Completion criteria, and
-  Working memory from `.weave/state.md` are used. Add `-s`/`--state` to include
-  that context alongside an explicit task.
+- With no task, the Goal, Constraints, Not requested, Completion criteria,
+  Blocking questions, Plan, and Working memory from `.weave/state.md` are used.
+  Add `-s`/`--state` to include that context alongside an explicit task.
 - `-m`/`--mode <off|lite|full|ultra>` sets the engineering rules (default:
   `.weave/mode`). `-b`/`--budget <1-50>` sets the step budget (default 10).
   `--memory <name>` adds a saved snapshot from `.weave/memories/`.
@@ -41,9 +41,9 @@ weave prompt gemini -b 5 "add pagination to /users"
 
 ## What each target gets
 
-Every brief has the same sections: Task, Done when, Scope, What is already
-known, Engineering rules, How to work, Before you say it is done (the six
-fidelity questions from the `weave` skill), and Final report.
+Every brief has Task, Done when, Scope, verified context when available,
+the existing plan and open decisions when present, engineering rules, work
+instructions, fidelity questions, and final report.
 
 - **claude**: points to `CLAUDE.md`, asks to read files before proposing
   changes, ask before editing when a requirement is ambiguous, and keep a todo
@@ -55,11 +55,27 @@ fidelity questions from the `weave` skill), and Final report.
   resolved, search with `rg`, keep diffs minimal, run tests, and give a brief
   final answer.
 
-## How to present it
+## Make it useful
 
-Show the brief exactly as generated, as plain text. Do not wrap it in XML or
-rewrite its sections. If the working memory in `.weave/state.md` is thin,
-improve the state file first, then regenerate.
+The CLI/MCP output is a scaffold. When an agent invokes this skill, do not
+merely paste it back to the user. First inspect the task, relevant repository
+entry points, and `.weave/state.md` when applicable. Then produce one
+ready-to-paste brief in the target agent's style that includes:
+
+1. The user's actual objective, preserved without adding features.
+2. Specific acceptance criteria and a practical verification for each.
+3. Confirmed repository facts: relevant paths, the current flow, and any
+   constraints or invariants the next agent must preserve.
+4. The first useful action and an ordered plan for multi-step work. Include
+   the existing plan only after checking it still fits the request.
+5. The one blocking question, if any, or explicit assumptions otherwise.
+
+Use the generated scaffold for target conventions and engineering rules;
+remove repeated or irrelevant boilerplate. Distinguish verified facts from
+assumptions. If there is no repository context, do not invent paths or
+acceptance criteria that cannot follow from the task. Ask for missing
+information only if a correct brief cannot be written without it. Present
+only the finished Markdown brief, without XML or commentary about generation.
 
 ## When to use this vs. the `weave` skill
 

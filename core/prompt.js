@@ -77,7 +77,9 @@ function parseStateMarkdown(content) {
     constraints: sections['constraints'] || '',
     antiScope: sections['not requested'] || '',
     criteria: sections['completion criteria'] || '',
+    questions: sections['blocking questions'] || '',
     memory: sections['working memory'] || '',
+    plan: sections['plan'] || '',
   };
 }
 
@@ -192,6 +194,8 @@ function renderPrompt({ target, contract, goal, mode, budget }) {
     ...bullets(contract.antiScope).map((l) => l.replace(/^- /, '- Out of scope: ')),
   ];
   const criteria = bullets(contract.criteria);
+  const questions = cleanText(contract.questions);
+  const plan = cleanText(contract.plan);
   const taskSection = section('Task', [cleanText(goal)]);
   const lines = [
     `# ${profile.title}`,
@@ -199,9 +203,11 @@ function renderPrompt({ target, contract, goal, mode, budget }) {
     ...profile.intro,
     '',
     ...(profile.taskLast ? [] : taskSection),
-    ...section('Done when', criteria.length ? criteria : ['- Define a concrete, verifiable check before you start, and meet it before you finish.']),
+    ...section('Done when', criteria.length ? criteria : ['- Derive observable acceptance criteria from the task and check them before finishing. If the request cannot determine them, ask one focused question.']),
     ...section('Scope', scope),
     ...section('What is already known', knownFacts(contract)),
+    ...section('Open decisions', questions && !/^none\.?$/i.test(questions) ? [questions] : []),
+    ...section('Existing plan', plan ? ['Check this plan against the current request and repository before executing it.', plan] : []),
     ...section('Plan before you code', modes.planSteps(mode).map((l, i) => `${i + 1}. ${l}`)),
     ...section('Engineering rules', modes.rules(mode).map((l) => `- ${l}`)),
     ...section('How to work', profile.method(budget).map((l) => `- ${l}`)),
@@ -224,7 +230,7 @@ function buildSuperPrompt(options = {}) {
 
   const target = normalizeTarget(options.target);
   const task = cleanText(options.task);
-  const contract = { goal: '', constraints: '', antiScope: '', criteria: '', memory: '' };
+  const contract = { goal: '', constraints: '', antiScope: '', criteria: '', questions: '', memory: '', plan: '' };
 
   const statePath = path.join(cwd, '.weave', 'state.md');
   if ((options.state || !task) && fs.existsSync(statePath)) {

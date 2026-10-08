@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- Planning now requires observable acceptance checks, dependencies, real risks, and a usable first milestone for new projects.
+- SuperPrompt includes saved blocking questions and the existing plan, while agent commands turn the generated scaffold into a task brief with verified repository context.
+
 ## 0.7.0
 
 - SuperPrompt now prints a plain-text task brief instead of XML, with a dedicated style per target: `claude` (Claude Code), `gemini` (Gemini / Antigravity, aliases `antigravity` and `agy`), `codex`, and `generic`. Working memory is passed through verbatim instead of being split by keyword.

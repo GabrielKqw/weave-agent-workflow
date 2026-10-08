@@ -26,15 +26,16 @@ edit source files until the user approves the plan.
 2. **Trace.** Start at the entry point the task names (file, command, error,
    endpoint). Follow real callers and references outward. Every read answers
    one question.
-3. **Contract.** Goal, Constraints, Not requested, Completion criteria,
-   Blocking questions. Ask only what changes the result; state assumptions
-   for the rest.
+3. **Contract.** State what the user can do when done, constraints, exclusions,
+   observable acceptance criteria, and the check for each criterion. Ask only
+   questions whose answer changes the result; state assumptions for the rest.
 4. **Climb the ladder.** For each needed change: does it need to exist, is it
    already in the repo, does the stdlib or platform cover it, can it land at
    the shared point all callers use, could code be removed instead.
-5. **Plan.** Ordered steps, each with the file, the change, and how it is
-   verified. Smallest sequence that meets the criteria. Mark risky steps
-   (security, data, public interface).
+5. **Plan.** Ordered steps, each with the file, change, and verification.
+   Identify dependencies and real risks (security, data, public interface).
+   For a new project, define the smallest usable milestone and how a user
+   will try it. Reject steps without a path to an acceptance criterion.
 6. **Save.** Write Goal, Constraints, Not requested, Completion criteria,
    Blocking questions, Working memory, and Plan into `.weave/state.md`.
 
