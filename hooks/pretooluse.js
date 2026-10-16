@@ -27,28 +27,9 @@ function main() {
     return;
   }
 
-  // Antigravity (Google / Gemini) hook protocol
-  if (input.toolCall && input.toolCall.name === 'run_command') {
-    const execCore = require('../core/exec');
-    const args = input.toolCall.args || {};
-    const command = args.CommandLine;
-    if (!execCore.shouldWrap({ command })) {
-      process.stdout.write(JSON.stringify({ decision: 'allow' }));
-      return;
-    }
-    const weaveJsPath = path.join(__dirname, '..', 'cli', 'weave.js');
-    const cwd = args.Cwd || (Array.isArray(input.workspacePaths) && input.workspacePaths[0]) || process.cwd();
-    const targetShell = process.platform === 'win32' ? 'powershell' : 'bash';
-    const wrapped = execCore.buildWrappedCommand(command, weaveJsPath, cwd, { shell: targetShell });
-    const output = {
-      decision: 'allow',
-      overwrite: {
-        CommandLine: wrapped,
-      },
-    };
-    process.stdout.write(JSON.stringify(output));
-    return;
-  }
+  // Antigravity (Google / Gemini) hook protocol: no decision and no rewrite, so the
+  // call always goes through the agent's normal permission flow.
+  if (input.toolCall) return;
 
   if (hasCodexEnv()) {
     return;
@@ -62,11 +43,12 @@ function main() {
   const weaveJsPath = path.join(__dirname, '..', 'cli', 'weave.js');
   const wrapped = execCore.buildWrappedCommand(input.tool_input.command, weaveJsPath, input.cwd);
 
+  // Suggest only: the hook never approves the call or changes its input, so the
+  // command still goes through Claude Code's normal permission flow.
   const output = {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
-      permissionDecision: 'allow',
-      updatedInput: { ...input.tool_input, command: wrapped },
+      additionalContext: `Weave: for compact output on noisy commands, prefer running them through Weave next time, e.g. ${wrapped}`,
     },
   };
   process.stdout.write(JSON.stringify(output));

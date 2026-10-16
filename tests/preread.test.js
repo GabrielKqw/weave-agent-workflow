@@ -30,7 +30,7 @@ function preTool(cwd, toolName, toolInput) {
 function allowedReminder(result) {
   assert.equal(result.status, 0);
   const output = JSON.parse(result.stdout);
-  assert.equal(output.hookSpecificOutput.permissionDecision, 'allow');
+  assert.equal(output.hookSpecificOutput.permissionDecision, undefined);
   assert.match(output.hookSpecificOutput.additionalContext, /^You already /);
 }
 

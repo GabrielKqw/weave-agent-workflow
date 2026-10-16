@@ -18,7 +18,7 @@ function runHook(inputObj, env = {}) {
   return spawnSync('node', [HOOK_PATH], { input, encoding: 'utf8', env: { ...cleanEnv, ...env } });
 }
 
-test('hook JSON protocol: rewrites an eligible Bash command with the expected shape', () => {
+test('hook only suggests Weave for an eligible Bash command: no decision, no input change', () => {
   const result = runHook({
     session_id: 'abc123',
     cwd: 'C:\\Users\\user\\Desktop\\Projects\\Weave',
@@ -30,15 +30,14 @@ test('hook JSON protocol: rewrites an eligible Bash command with the expected sh
   assert.equal(result.status, 0);
   const out = JSON.parse(result.stdout);
   assert.equal(out.hookSpecificOutput.hookEventName, 'PreToolUse');
-  assert.equal(out.hookSpecificOutput.permissionDecision, 'allow');
-  const cmd = out.hookSpecificOutput.updatedInput.command;
-  assert.ok(cmd.startsWith(execCore.SENTINEL));
-  assert.ok(cmd.includes('weave.js'));
-  assert.ok(cmd.includes('exec --'));
-  assert.ok(cmd.includes("--cwd 'C:\\Users\\user\\Desktop\\Projects\\Weave'"));
-  assert.ok(cmd.includes("'git status'"));
-  assert.equal(out.hookSpecificOutput.updatedInput.timeout, 120000);
-  assert.equal(out.hookSpecificOutput.updatedInput.run_in_background, false);
+  assert.equal(out.hookSpecificOutput.permissionDecision, undefined);
+  assert.equal(out.hookSpecificOutput.updatedInput, undefined);
+  assert.equal(out.decision, undefined);
+  const ctx = out.hookSpecificOutput.additionalContext;
+  assert.ok(ctx.includes(execCore.SENTINEL));
+  assert.ok(ctx.includes('weave.js'));
+  assert.ok(ctx.includes('exec --'));
+  assert.ok(ctx.includes("'git status'"));
 });
 
 test('hook never touches non-Bash tools (e.g. Read, Grep, Glob)', () => {
@@ -49,21 +48,19 @@ test('hook never touches non-Bash tools (e.g. Read, Grep, Glob)', () => {
   }
 });
 
-test('hook rewrites ordinary Claude Bash input without a swallowed ReferenceError', () => {
+test('hook suggests for ordinary Claude Bash input without a swallowed ReferenceError', () => {
   const result = runHook({
     hook_event_name: 'PreToolUse',
     tool_name: 'Bash',
     tool_input: { command: 'git status' },
   });
   assert.equal(result.status, 0);
-  assert.notEqual(result.stdout, '', 'ordinary Claude input must produce a rewrite, not silently fail open');
+  assert.notEqual(result.stdout, '', 'ordinary Claude input must produce a suggestion, not silently fail open');
   const out = JSON.parse(result.stdout);
-  assert.equal(out.hookSpecificOutput.hookEventName, 'PreToolUse');
-  assert.equal(out.hookSpecificOutput.permissionDecision, 'allow');
-  assert.equal(
-    out.hookSpecificOutput.updatedInput.command,
+  assert.equal(out.hookSpecificOutput.permissionDecision, undefined);
+  assert.ok(out.hookSpecificOutput.additionalContext.includes(
     execCore.buildWrappedCommand('git status', path.join(__dirname, '..', 'cli', 'weave.js'))
-  );
+  ));
 });
 
 test('hook does not rewrite commands inside Codex', () => {
@@ -133,45 +130,18 @@ test('hook preserves a Windows path embedded in the original command', () => {
     tool_input: { command: 'cat "C:\\Users\\user\\Desktop\\Projects\\Weave\\README.md"' },
   });
   const out = JSON.parse(result.stdout);
-  const cmd = out.hookSpecificOutput.updatedInput.command;
+  const cmd = out.hookSpecificOutput.additionalContext;
   assert.ok(cmd.includes('C:\\Users\\user\\Desktop\\Projects\\Weave\\README.md'));
 });
 
-test('hook Antigravity protocol: rewrites an eligible run_command with overwrite payload', () => {
-  const result = runHook({
-    conversationId: 'conv-123',
-    workspacePaths: ['C:\\Users\\user\\Desktop\\Projects\\Weave'],
-    toolCall: {
-      name: 'run_command',
-      args: { CommandLine: 'git status', Cwd: 'C:\\Users\\user\\Desktop\\Projects\\Weave' },
-    },
-  });
-  assert.equal(result.status, 0);
-  const out = JSON.parse(result.stdout);
-  assert.equal(out.decision, 'allow');
-  assert.ok(out.overwrite);
-  assert.ok(out.overwrite.CommandLine.includes('weave.js'));
-  assert.ok(out.overwrite.CommandLine.includes('exec'));
-  if (out.overwrite.CommandLine.includes('--b64')) {
-    const match = out.overwrite.CommandLine.match(/--b64\s+([A-Za-z0-9+/=]+)/);
-    assert.ok(match);
-    assert.equal(Buffer.from(match[1], 'base64').toString('utf8'), 'git status');
-  } else {
-    assert.ok(out.overwrite.CommandLine.includes('git status'));
+test('hook Antigravity protocol: never approves or rewrites run_command', () => {
+  for (const CommandLine of ['git status', '$env:WEAVE_WRAPPED="1"; node "C:\\weave\\cli\\weave.js" exec -- git status']) {
+    const result = runHook({
+      conversationId: 'conv-123',
+      workspacePaths: ['C:\\Users\\user\\Desktop\\Projects\\Weave'],
+      toolCall: { name: 'run_command', args: { CommandLine } },
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, '');
   }
 });
-
-test('hook Antigravity protocol: does not rewrite an already wrapped command', () => {
-  const already = '$env:WEAVE_WRAPPED="1"; node "C:\\weave\\cli\\weave.js" exec -- git status';
-  const result = runHook({
-    toolCall: {
-      name: 'run_command',
-      args: { CommandLine: already },
-    },
-  });
-  assert.equal(result.status, 0);
-  const out = JSON.parse(result.stdout);
-  assert.equal(out.decision, 'allow');
-  assert.equal(out.overwrite, undefined);
-});
-

@@ -1,6 +1,6 @@
 {
   "name": "weave-agent-workflow",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Zero-dependency context & token optimizer for Claude Code, Codex CLI, and Google Antigravity. Cuts terminal output by up to 96.4% to prevent context window exhaustion.",
   "keywords": [
     "claude-code",

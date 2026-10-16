@@ -1,3 +1,6 @@
 .weave/runs/
 .weave/reads.json
 .claude/
+.agent-workspace/
+relatorio-teste-multiagente-weave.pdf
+reddit-post.md

@@ -12,7 +12,7 @@ Minimal engineering policy, terminal intelligence, context continuity, and verif
 [![npm version](https://img.shields.io/npm/v/weave-agent-workflow.svg)](https://www.npmjs.com/package/weave-agent-workflow)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/runtime_dependencies-0-111111)
-![Version](https://img.shields.io/badge/version-0.7.1-2563eb)
+![Version](https://img.shields.io/badge/version-0.7.2-2563eb)
 
 
 </div>
@@ -149,7 +149,7 @@ The lifecycle hook injects the active policy when a session or subagent starts. 
 
 ## Terminal Profiles
 
-Weave intercepts eligible shell commands and applies conservative, domain-specific reduction profiles:
+Eligible shell commands run through `weave exec` (directly, via the MCP server, or as suggested by the Claude Code hook) and get conservative, domain-specific reduction profiles:
 
 * **Git Commands**:
   * `git status`: Condenses long lists of untracked and modified files per section, while stripping verbose hint boilerplate (e.g. `(use "git add <file>..." to include in what will be committed)`).
@@ -211,9 +211,9 @@ Run `node cli/weave.js gain` inside a project to measure its retained Weave hist
 
 | Agent | Integration |
 | --- | --- |
-| Claude Code | Shared skills, lifecycle events, and automatic shell interception |
+| Claude Code | Shared skills, lifecycle events, and a PreToolUse hook that suggests `weave exec` for noisy commands. Hooks never approve tool calls or rewrite their input, so every call goes through the normal permission prompt |
 | Codex CLI | Shared skills and lifecycle policy (mode injection) via the plugin manifest. Automatic shell interception is not currently supported in Codex CLI |
-| Antigravity CLI (`agy`) | Shared skills, rule policy (`GEMINI.md`), and PreToolUse tool interception for `run_command` with PowerShell & Bash support |
+| Antigravity CLI (`agy`) | Shared skills and rule policy (`GEMINI.md`). The hook never approves or rewrites `run_command` |
 | OpenCode | Native `opencode.json` config, MCP server, lifecycle hooks (`plugins/opencode.js`), slash commands (`.opencode/commands/`), and `AGENTS.md` |
 | Other agents | The CLI can be called directly; automatic host integration is not claimed |
 

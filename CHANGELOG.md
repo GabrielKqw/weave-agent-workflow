@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+- Hooks no longer approve tool calls or change their input. The Claude Code Bash hook now only adds context suggesting `weave exec`; the Read/Grep/Glob repeat reminder no longer sets a permission decision; the Antigravity hook returns nothing. Every tool call goes through the host's normal permission prompt.
+- `.claude-plugin/marketplace.json` version now tracks the package version, checked by `tests/manifests.test.js`.
+- Removed the test report PDF, `reddit-post.md`, and `.agent-workspace/` logs from the repository.
+
 ## 0.7.1
 
 - Planning now requires observable acceptance checks, dependencies, real risks, and a usable first milestone for new projects.

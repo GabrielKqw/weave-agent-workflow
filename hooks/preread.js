@@ -51,7 +51,6 @@ function main() {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
-      permissionDecision: 'allow',
       additionalContext,
     },
   }));
