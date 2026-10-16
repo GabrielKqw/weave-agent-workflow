@@ -27,13 +27,13 @@
   ],
   "author": "Gabriel Costa",
   "license": "MIT",
-  "homepage": "https://github.com/GabrielKqw/weave",
+  "homepage": "https://github.com/GabrielKqw/weave-agent-workflow",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GabrielKqw/weave.git"
+    "url": "git+https://github.com/GabrielKqw/weave-agent-workflow.git"
   },
   "bugs": {
-    "url": "https://github.com/GabrielKqw/weave/issues"
+    "url": "https://github.com/GabrielKqw/weave-agent-workflow/issues"
   },
   "type": "commonjs",
   "bin": {

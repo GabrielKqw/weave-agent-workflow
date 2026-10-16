@@ -8,7 +8,7 @@ Minimal engineering policy, terminal intelligence, context continuity, and verif
 
 [Documentation & Demo](https://gabrielkqw.github.io/weave) | [Why Weave?](#why-weave) | [See it in action](#see-weave-in-action) | [Architecture](#architecture) | [Benchmarks](#benchmarks) | [Installation](#installation)
 
-[![CI](https://github.com/GabrielKqw/weave/actions/workflows/ci.yml/badge.svg)](https://github.com/GabrielKqw/weave/actions/workflows/ci.yml)
+[![CI](https://github.com/GabrielKqw/weave-agent-workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/GabrielKqw/weave-agent-workflow/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/weave-agent-workflow.svg)](https://www.npmjs.com/package/weave-agent-workflow)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/runtime_dependencies-0-111111)
@@ -265,28 +265,28 @@ node scripts/generate-agent-rules.js --check  # CI: fail if the checked-in files
 ### Claude Code
 
 ```bash
-claude plugin marketplace add GabrielKqw/weave --scope user
-claude plugin install weave@weave --scope user
-claude plugin details weave@weave
+claude plugin marketplace add GabrielKqw/weave-agent-workflow --scope user
+claude plugin install weave-agent-workflow@weave --scope user
+claude plugin details weave-agent-workflow@weave
 ```
 
 Claude Code keeps a managed local checkout of the Git marketplace. Update it from the plugin screen or from the terminal, then restart Claude Code:
 
 ```bash
-claude plugin update weave@weave --scope user
+claude plugin update weave-agent-workflow@weave --scope user
 ```
 
 To uninstall:
 
 ```bash
-claude plugin uninstall weave@weave --scope user
+claude plugin uninstall weave-agent-workflow@weave --scope user
 claude plugin marketplace remove weave --scope user
 ```
 
 ### Codex CLI
 
 ```bash
-codex plugin marketplace add GabrielKqw/weave
+codex plugin marketplace add GabrielKqw/weave-agent-workflow
 codex plugin add weave@weave
 codex plugin list
 ```
@@ -302,8 +302,8 @@ codex plugin marketplace upgrade weave
 Install from a local clone of the repository:
 
 ```bash
-git clone https://github.com/GabrielKqw/weave.git
-cd weave
+git clone https://github.com/GabrielKqw/weave-agent-workflow.git
+cd weave-agent-workflow
 agy plugin install ./
 ```
 
@@ -339,10 +339,10 @@ What OpenCode gets automatically:
 Use a local marketplace only when developing Weave itself:
 
 ```bash
-git clone https://github.com/GabrielKqw/weave.git
-cd weave
+git clone https://github.com/GabrielKqw/weave-agent-workflow.git
+cd weave-agent-workflow
 claude plugin marketplace add ./ --scope project
-claude plugin install weave@weave --scope project
+claude plugin install weave-agent-workflow@weave --scope project
 node cli/weave.js doctor
 ```
 
@@ -529,7 +529,7 @@ Licensed under the [MIT License](LICENSE).
 
 **Weave** — the engineering layer for AI coding agents
 
-[GitHub](https://github.com/GabrielKqw/weave) &middot; [LinkedIn](https://www.linkedin.com/in/gabriel-costa-940b89276/) &middot; Discord `tanjas1`
+[GitHub](https://github.com/GabrielKqw/weave-agent-workflow) &middot; [LinkedIn](https://www.linkedin.com/in/gabriel-costa-940b89276/) &middot; Discord `tanjas1`
 
 Created by **Gabriel Costa**
 

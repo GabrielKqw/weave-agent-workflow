@@ -14,7 +14,7 @@ function readJson(rel) {
 
 test('.claude-plugin/plugin.json relies on automatic standard hook discovery', () => {
   const pkg = readJson('.claude-plugin/plugin.json');
-  assert.equal(pkg.name, 'weave');
+  assert.equal(pkg.name, 'weave-agent-workflow');
   assert.equal(pkg.hooks, undefined);
 });
 
@@ -22,6 +22,7 @@ test('.claude-plugin/marketplace.json is valid and self-references this plugin',
   const mkt = readJson('.claude-plugin/marketplace.json');
   assert.equal(mkt.name, 'weave');
   assert.ok(Array.isArray(mkt.plugins) && mkt.plugins.length === 1);
+  assert.equal(mkt.plugins[0].name, readJson('.claude-plugin/plugin.json').name);
   assert.equal(mkt.plugins[0].source, './');
 });
 

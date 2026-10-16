@@ -362,9 +362,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Install Snippet Switcher
   // ------------------------------------------------------------------------
   const installSnippets = {
-    claude: 'claude plugin marketplace add GabrielKqw/weave --scope user\nclaude plugin install weave@weave --scope user',
-    codex: 'codex plugin marketplace add GabrielKqw/weave\ncodex plugin add weave@weave',
-    agy: 'git clone https://github.com/GabrielKqw/weave.git\ncd weave && agy plugin install ./',
+    claude: 'claude plugin marketplace add GabrielKqw/weave-agent-workflow --scope user\nclaude plugin install weave-agent-workflow@weave --scope user',
+    codex: 'codex plugin marketplace add GabrielKqw/weave-agent-workflow\ncodex plugin add weave@weave',
+    agy: 'git clone https://github.com/GabrielKqw/weave-agent-workflow.git\ncd weave-agent-workflow && agy plugin install ./',
     opencode: '{\n  "$schema": "https://opencode.ai/config.json",\n  "mcp": {\n    "weave": {\n      "type": "local",\n      "command": ["node", "./mcp/server.js"]\n    }\n  }\n}',
     standalone: 'npm install --global weave-agent-workflow\n# Or run directly without installation:\nnpx weave-agent-workflow doctor'
   };

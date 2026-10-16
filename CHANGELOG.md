@@ -2,6 +2,8 @@
 
 ## 0.7.2
 
+- Claude Code plugin renamed to `weave-agent-workflow` (matching the npm package) to avoid a name clash in the Claude plugin directory; install with `claude plugin install weave-agent-workflow@weave`. The marketplace, Codex, and Antigravity plugin names stay `weave`. Repository URLs now point at `GabrielKqw/weave-agent-workflow`.
+- Added `.claude-plugin/icon.png` for the directory listing.
 - Hooks no longer approve tool calls or change their input. The Claude Code Bash hook now only adds context suggesting `weave exec`; the Read/Grep/Glob repeat reminder no longer sets a permission decision; the Antigravity hook returns nothing. Every tool call goes through the host's normal permission prompt.
 - `.claude-plugin/marketplace.json` version now tracks the package version, checked by `tests/manifests.test.js`.
 - Removed the test report PDF, `reddit-post.md`, and `.agent-workspace/` logs from the repository.
