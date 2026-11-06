@@ -45,8 +45,9 @@ function shouldWrap(toolInput) {
 function buildWrappedCommand(originalCommand, weaveJsPath, cwd, { shell = 'bash' } = {}) {
   if (shell === 'powershell') {
     const cwdArg = cwd ? `--cwd ${shellQuotePowershell(cwd)} ` : '';
-    const b64 = Buffer.from(originalCommand, 'utf8').toString('base64');
-    return `$env:WEAVE_WRAPPED="1"; node ${shellQuotePowershell(weaveJsPath)} exec --shell powershell ${cwdArg}--b64 ${b64}`;
+    // The command travels in an env var: Windows PowerShell 5.1 mangles embedded
+    // double quotes when passing arguments to native executables like node.
+    return `$env:WEAVE_WRAPPED="1"; $env:WEAVE_COMMAND=${shellQuotePowershell(originalCommand)}; node ${shellQuotePowershell(weaveJsPath)} exec --shell powershell ${cwdArg}--command-env`;
   }
   const jsPath = toGitBashPath(weaveJsPath);
   const cwdArg = cwd ? `--cwd ${shellQuoteSingle(cwd)} ` : '';
@@ -58,8 +59,7 @@ function runCommand(command, { cwd, shell = 'bash' } = {}) {
   let binary, args;
   if (isPowershell) {
     binary = 'powershell.exe';
-    const b64 = Buffer.from(command, 'utf16le').toString('base64');
-    args = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', b64];
+    args = ['-NoProfile', '-NonInteractive', '-Command', command];
   } else {
     binary = bashExecutable();
     args = ['-c', command];

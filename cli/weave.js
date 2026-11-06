@@ -52,9 +52,8 @@ function cmdExec(argv) {
     argv = [...argv.slice(0, cwdIdx), ...argv.slice(cwdIdx + 2)];
   }
   let command;
-  const b64Idx = argv.indexOf('--b64');
-  if (b64Idx !== -1) {
-    command = Buffer.from(argv[b64Idx + 1] || '', 'base64').toString('utf8');
+  if (argv.includes('--command-env')) {
+    command = process.env.WEAVE_COMMAND || '';
   } else {
     const dashIdx = argv.indexOf('--');
     command = dashIdx === -1 ? argv.join(' ') : argv.slice(dashIdx + 1).join(' ');

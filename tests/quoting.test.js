@@ -30,7 +30,7 @@ test('shellQuotePowershell round-trips arbitrary strings through powershell', { 
     const wrapped = shellQuotePowershell(original);
     const result = spawnSync(
       'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', `[Console]::Out.Write(${wrapped})`],
+      ['-NoProfile', '-NonInteractive', '-Command', `[Console]::Out.Write(${wrapped})`],
       { encoding: 'utf8' }
     );
     assert.equal(result.status, 0, `powershell failed for case: ${JSON.stringify(original)}`);

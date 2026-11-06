@@ -70,7 +70,7 @@ test('tool.execute.before wraps powershell commands with powershell wrapper', as
 
   assert.ok(output.args.command.startsWith('$env:WEAVE_WRAPPED="1"'));
   assert.ok(output.args.command.includes('--shell powershell'));
-  assert.ok(output.args.command.includes('--b64'));
+  assert.ok(output.args.command.includes('--command-env'));
 });
 
 test('tool.execute.before ignores non-shell tools', async () => {

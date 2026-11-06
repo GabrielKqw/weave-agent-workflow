@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3
+
+- PowerShell commands no longer travel Base64-encoded. `weave exec` runs them with `powershell.exe -NoProfile -NonInteractive -Command <command>` instead of `-ExecutionPolicy Bypass -EncodedCommand <base64>`, so the host's execution policy applies and the command is readable in process listings. Exit codes and output are unchanged (verified case by case against the old invocation).
+- The PowerShell wrapper passes the original command in the `WEAVE_COMMAND` env var (`--command-env`) instead of `--b64 <base64>`; the `--b64` flag is removed. Windows PowerShell 5.1 mangles embedded double quotes in native arguments, which is why the command does not go through argv.
+
 ## 0.7.2
 
 - Claude Code plugin renamed to `weave-agent-workflow` (matching the npm package) to avoid a name clash in the Claude plugin directory; install with `claude plugin install weave-agent-workflow@weave`. The marketplace, Codex, and Antigravity plugin names stay `weave`. Repository URLs now point at `GabrielKqw/weave-agent-workflow`.

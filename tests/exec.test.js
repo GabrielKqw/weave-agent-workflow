@@ -136,16 +136,31 @@ test('shouldWrap excludes background commands and empty/missing commands', () =>
 
 test('buildWrappedCommand supports powershell shell target', () => {
   const wrapped = execCore.buildWrappedCommand('git status', 'C:\\weave\\cli\\weave.js', 'C:\\repo', { shell: 'powershell' });
-  assert.ok(wrapped.startsWith('$env:WEAVE_WRAPPED="1"; node'));
+  assert.ok(wrapped.startsWith(`$env:WEAVE_WRAPPED="1"; $env:WEAVE_COMMAND='git status'; node`));
   assert.ok(wrapped.includes('--shell powershell'));
   assert.ok(wrapped.includes("--cwd 'C:\\repo'"));
-  assert.ok(wrapped.includes('--b64'));
+  assert.ok(wrapped.includes('--command-env'));
 });
 
 test('runCommand with shell powershell executes via PowerShell on Windows', { skip: process.platform !== 'win32' }, () => {
   const result = execCore.runCommand('Write-Output "ps-output-check"', { shell: 'powershell' });
   assert.equal(result.exitCode, 0);
   assert.ok(result.stdout.includes('ps-output-check'));
+});
+
+test('runCommand with shell powershell propagates failure exit codes', { skip: process.platform !== 'win32' }, () => {
+  assert.equal(execCore.runCommand('exit 7', { shell: 'powershell' }).exitCode, 7);
+  assert.equal(execCore.runCommand('Get-Item weave-missing-path-xyz', { shell: 'powershell' }).exitCode, 1);
+});
+
+test('powershell wrapped command round-trips quotes through weave exec', { skip: process.platform !== 'win32' }, () => {
+  const original = `Write-Output 'single "double" it''s'`;
+  const weaveJsPath = path.join(__dirname, '..', 'cli', 'weave.js');
+  const wrapped = execCore.buildWrappedCommand(original, weaveJsPath, tmpCwd(), { shell: 'powershell' });
+  assert.ok(!/base64|EncodedCommand/i.test(wrapped));
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', wrapped], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.stdout.includes(`single "double" it's`), result.stdout);
 });
 
 test('shouldWrap excludes commands beyond the safety length cap', () => {
