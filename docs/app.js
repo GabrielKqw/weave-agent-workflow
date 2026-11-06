@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setup_title: 'Connect to Your Coding Tool',
       setup_desc: 'Choose your developer environment and get set up in under 60 seconds.',
 
-      claude_guide_desc: 'Installs as a native Claude Code plugin with automatic shell interception hooks and shared skills:',
+      claude_guide_desc: 'Installs as a native Claude Code plugin with shared skills (no hooks; the policy loads when a Weave skill runs):',
       codex_guide_desc: 'Installs via Codex plugin manifest with engineering policy mode injection and shared skills:',
       agy_guide_desc: 'Integrates via native plugin install or shared skills and GEMINI.md policy:',
       rules_guide_desc: 'Use pre-generated rules that inject Weave\'s engineering policy into file-reading agents:',
@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setup_title: 'Conecte à Sua Ferramenta de Código',
       setup_desc: 'Escolha seu ambiente de desenvolvimento e configure em menos de 60 segundos.',
 
-      claude_guide_desc: 'Instala como plugin nativo do Claude Code com hooks automáticos de intercepção e skills compartilhadas:',
+      claude_guide_desc: 'Instala como plugin nativo do Claude Code com skills compartilhadas (sem hooks; a política carrega quando uma skill do Weave roda):',
       codex_guide_desc: 'Instala através do manifesto de plugins do Codex com injeção de política de engenharia:',
       agy_guide_desc: 'Integra via instalação nativa de plugin ou skills compartilhadas com regras em GEMINI.md:',
       rules_guide_desc: 'Utiliza arquivos de regras pré-gerados que injetam a política do Weave em editores com IA:',
