@@ -74,7 +74,7 @@ test('fails open with empty stdout for malformed, irrelevant, or invalid input',
 });
 
 test('hooks manifest adds the preread matcher without changing the Bash entry', () => {
-  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8'));
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'codex-hooks.json'), 'utf8'));
   const bash = manifest.hooks.PreToolUse.find((entry) => entry.matcher === '^Bash$');
   const preread = manifest.hooks.PreToolUse.find((entry) => entry.matcher === 'Read|Grep|Glob');
   assert.equal(bash.hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.js"');

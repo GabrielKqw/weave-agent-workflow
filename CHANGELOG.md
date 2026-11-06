@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.4
+
+- The Claude Code plugin no longer ships command hooks: the Claude plugin directory accepts them only from verified organizations. `hooks/hooks.json` (auto-discovered by Claude Code) is renamed to `hooks/codex-hooks.json`, which only `.codex-plugin/plugin.json` references, so Codex keeps its lifecycle hooks unchanged. In Claude Code the policy now loads through the Weave skills instead of a SessionStart/UserPromptSubmit hook, and the Bash `weave exec` suggestion and the Read/Grep/Glob repeat reminder are no longer active there. `tests/manifests.test.js` fails if `hooks/hooks.json` comes back.
+- CI checks out LF on Windows runners (`core.autocrlf false`), fixing the skill frontmatter and generated-rules tests that failed on CRLF checkouts.
+
 ## 0.7.3
 
 - PowerShell commands no longer travel Base64-encoded. `weave exec` runs them with `powershell.exe -NoProfile -NonInteractive -Command <command>` instead of `-ExecutionPolicy Bypass -EncodedCommand <base64>`, so the host's execution policy applies and the command is readable in process listings. Exit codes and output are unchanged (verified case by case against the old invocation).

@@ -128,11 +128,11 @@ Example: "Add retries to the payment client."
 
 ## Terminal output
 
-A PreToolUse hook routes eligible shell calls through `weave exec`: noisy
-successful output is condensed, failures stay complete, file reads and
-explicit JSON stay verbatim. `weave recall <id>` returns the full original.
-Without the hook, use the tool's own quiet flags (`--short`, `-q`); never
-install anything silently.
+Where the agent integration wraps shell calls (OpenCode plugin, MCP server),
+eligible commands run through `weave exec`: noisy successful output is
+condensed, failures stay complete, file reads and explicit JSON stay verbatim.
+`weave recall <id>` returns the full original. Otherwise, use the tool's own
+quiet flags (`--short`, `-q`); never install anything silently.
 
 ## Shared state: `.weave/state.md`
 

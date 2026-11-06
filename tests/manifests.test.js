@@ -12,10 +12,12 @@ function readJson(rel) {
   return JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
 }
 
-test('.claude-plugin/plugin.json relies on automatic standard hook discovery', () => {
+test('Claude Code plugin ships no command hooks (directory policy for unverified organizations)', () => {
   const pkg = readJson('.claude-plugin/plugin.json');
   assert.equal(pkg.name, 'weave-agent-workflow');
   assert.equal(pkg.hooks, undefined);
+  // Claude Code auto-discovers hooks/hooks.json at the plugin root; it must not exist.
+  assert.equal(fs.existsSync(path.join(ROOT, 'hooks', 'hooks.json')), false);
 });
 
 test('.claude-plugin/marketplace.json is valid and self-references this plugin', () => {
@@ -30,7 +32,7 @@ test('.codex-plugin/plugin.json is valid and points at the shared skills dir', (
   const pkg = readJson('.codex-plugin/plugin.json');
   assert.equal(pkg.name, 'weave');
   assert.equal(pkg.skills, './skills/');
-  assert.equal(pkg.hooks, './hooks/hooks.json');
+  assert.equal(pkg.hooks, './hooks/codex-hooks.json');
 });
 
 test('package and plugin versions agree', () => {
@@ -74,8 +76,8 @@ test('.agents/plugins/marketplace.json is valid and points at the local plugin r
   assert.equal(mkt.plugins[0].source.path, './');
 });
 
-test('hooks/hooks.json declares a PreToolUse Bash matcher pointing at the real hook file', () => {
-  const hooks = readJson('hooks/hooks.json');
+test('hooks/codex-hooks.json declares a PreToolUse Bash matcher pointing at the real hook file', () => {
+  const hooks = readJson('hooks/codex-hooks.json');
   const entry = hooks.hooks.PreToolUse.find((e) => String(e.matcher).includes('Bash'));
   assert.ok(entry, 'expected a Bash matcher under PreToolUse');
   const handler = entry.hooks[0];

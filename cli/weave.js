@@ -295,7 +295,7 @@ function cmdDoctor(argv = []) {
     detail: opencodePluginOk ? opencodePluginPath : `missing: ${opencodePluginPath} - reinstall or reclone the Weave plugin`,
   });
 
-  const hooksJson = checkJson('hooks/hooks.json', path.join(PLUGIN_ROOT, 'hooks', 'hooks.json'), results);
+  const hooksJson = checkJson('hooks/codex-hooks.json', path.join(PLUGIN_ROOT, 'hooks', 'codex-hooks.json'), results);
 
   const hookScriptPath = path.join(PLUGIN_ROOT, 'hooks', 'pretooluse.js');
   const hookScriptOk = fs.existsSync(hookScriptPath);
@@ -321,7 +321,7 @@ function cmdDoctor(argv = []) {
   results.push({
     ok: hasBashMatcher,
     label: 'PreToolUse Bash matcher registered',
-    detail: hasBashMatcher ? 'found' : `not found in ${path.join(PLUGIN_ROOT, 'hooks', 'hooks.json')} - restore the PreToolUse entry from the repo`,
+    detail: hasBashMatcher ? 'found' : `not found in ${path.join(PLUGIN_ROOT, 'hooks', 'codex-hooks.json')} - restore the PreToolUse entry from the repo`,
   });
 
   const skillPath = path.join(PLUGIN_ROOT, 'skills', 'weave', 'SKILL.md');

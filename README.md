@@ -12,7 +12,7 @@ Minimal engineering policy, terminal intelligence, context continuity, and verif
 [![npm version](https://img.shields.io/npm/v/weave-agent-workflow.svg)](https://www.npmjs.com/package/weave-agent-workflow)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/runtime_dependencies-0-111111)
-![Version](https://img.shields.io/badge/version-0.7.3-2563eb)
+![Version](https://img.shields.io/badge/version-0.7.4-2563eb)
 
 
 </div>
@@ -97,8 +97,9 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    CC[Claude Code] --> H[Lifecycle and PreToolUse hooks]
-    CX[Codex] --> S[Shared skills]
+    CC[Claude Code] --> S[Shared skills]
+    CX[Codex] --> H[Lifecycle and PreToolUse hooks]
+    CX --> S
     H --> M[Mode and policy]
     S --> M
     H --> E[Execution engine]
@@ -149,7 +150,7 @@ The lifecycle hook injects the active policy when a session or subagent starts. 
 
 ## Terminal Profiles
 
-Eligible shell commands run through `weave exec` (directly, via the MCP server, or as suggested by the Claude Code hook) and get conservative, domain-specific reduction profiles:
+Eligible shell commands run through `weave exec` (directly, via the MCP server, or through the OpenCode plugin) and get conservative, domain-specific reduction profiles:
 
 * **Git Commands**:
   * `git status`: Condenses long lists of untracked and modified files per section, while stripping verbose hint boilerplate (e.g. `(use "git add <file>..." to include in what will be committed)`).
@@ -211,7 +212,7 @@ Run `node cli/weave.js gain` inside a project to measure its retained Weave hist
 
 | Agent | Integration |
 | --- | --- |
-| Claude Code | Shared skills, lifecycle events, and a PreToolUse hook that suggests `weave exec` for noisy commands. Hooks never approve tool calls or rewrite their input, so every call goes through the normal permission prompt |
+| Claude Code | Shared skills (`/weave`, `/weave-plan`, ...). The directory plugin ships no command hooks, so the policy loads when a Weave skill runs, not automatically at session start |
 | Codex CLI | Shared skills and lifecycle policy (mode injection) via the plugin manifest. Automatic shell interception is not currently supported in Codex CLI |
 | Antigravity CLI (`agy`) | Shared skills and rule policy (`GEMINI.md`). The hook never approves or rewrites `run_command` |
 | OpenCode | Native `opencode.json` config, MCP server, lifecycle hooks (`plugins/opencode.js`), slash commands (`.opencode/commands/`), and `AGENTS.md` |
@@ -386,7 +387,7 @@ Weave provides a direct CLI (`weave` or `node cli/weave.js`) for inspection, con
 Checks the local environment for compatibility:
 * Node.js version (requires `>=18`).
 * Bash availability (Git Bash on Windows or system `bash` on Linux/macOS; reports `WARN` instead of `FAIL` for agents like Antigravity and Codex that do not require bash for execution).
-* Plugin manifests integrity (`.claude-plugin/`, `.codex-plugin/`, `.agents/plugins/`, `GEMINI.md`, `hooks/hooks.json`).
+* Plugin manifests integrity (`.claude-plugin/`, `.codex-plugin/`, `.agents/plugins/`, `GEMINI.md`, `hooks/codex-hooks.json`).
 * Writable `.weave/` directory for local project state.
 
 #### `weave mode [off|lite|full|ultra]`
